@@ -1,6 +1,6 @@
 {
   "name": "@ramarivera/pi-grok-build",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Pi extension providing Grok Build / Grok CLI integration.",
   "license": "MIT",
   "type": "module",
@@ -46,7 +46,11 @@
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*"
   },
+  "dependencies": {
+    "cross-spawn": "^7.0.6"
+  },
   "devDependencies": {
+    "@types/cross-spawn": "^6.0.6",
     "@earendil-works/pi-ai": "^0.74.0",
     "@earendil-works/pi-coding-agent": "^0.74.0",
     "@types/node": "^25.0.0",
