@@ -11,16 +11,7 @@
  */
 
 import { createInterface } from "node:readline";
-import type { AssistantMessageEventStream } from "@earendil-works/pi-ai";
-import {
-  type Model,
-  type SimpleStreamOptions,
-} from "@earendil-works/pi-ai";
-// AssistantMessageEventStream is exported as a type-only export from pi-ai.
-// At runtime the class exists; use createRequire to access the constructor.
-import { createRequire } from "node:module";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const _AssistantMessageEventStreamCtor: any = createRequire(import.meta.url)("@earendil-works/pi-ai").AssistantMessageEventStream;
+import { AssistantMessageEventStream, type Model, type SimpleStreamOptions } from "@earendil-works/pi-ai";
 import {
   spawnGrok,
   registerProcess,
@@ -95,7 +86,9 @@ export function streamViaGrok(
   context: { messages: Array<{ role: string; content: unknown }>; systemPrompt?: string },
   options?: StreamViaGrokOptions,
 ): AssistantMessageEventStream {
-  const stream = new _AssistantMessageEventStreamCtor() as AssistantMessageEventStream;
+  // @ts-expect-error — pi-ai exports AssistantMessageEventStream as export type.
+  // The class constructor exists at runtime and Pi's ESM loader resolves it correctly.
+  const stream = new AssistantMessageEventStream();
 
   (async () => {
     let proc: ReturnType<typeof spawnGrok> | undefined;

@@ -7,15 +7,7 @@
  * 3. Command — /grok for CLI status and inspection
  */
 
-// Runtime imports through createRequire — @earendil-works/pi-ai is ESM-only
-// and Pi's CJS-based extension loader can't resolve its exports map.
-import { createRequire } from "node:module";
-import type { Type as T_Type } from "@earendil-works/pi-ai";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const _piAi: any = createRequire(import.meta.url)("@earendil-works/pi-ai");
-const Type = _piAi.Type as typeof T_Type;
-const getModels = _piAi.getModels as (provider: string) => Array<{ id: string; name: string; reasoning?: boolean; input?: string[]; cost?: { input: number; output: number; cacheRead: number; cacheWrite: number }; contextWindow?: number; maxTokens?: number }>;
-
+import { Type, getModels } from "@earendil-works/pi-ai";
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
