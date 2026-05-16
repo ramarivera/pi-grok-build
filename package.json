@@ -1,0 +1,56 @@
+{
+  "name": "@ramarivera/pi-grok-build",
+  "version": "0.0.1",
+  "description": "Pi extension providing Grok Build / Grok CLI integration.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ramarivera/pi-grok-build.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ramarivera/pi-grok-build/issues"
+  },
+  "homepage": "https://github.com/ramarivera/pi-grok-build#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-extension",
+    "grok",
+    "xai",
+    "grok-cli"
+  ],
+  "scripts": {
+    "test": "tsx --test test/**/*.test.ts",
+    "typecheck": "npm exec --package typescript -- tsc --noEmit",
+    "lint": "npm run typecheck"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "^0.74.0",
+    "@earendil-works/pi-coding-agent": "^0.74.0",
+    "@types/node": "^25.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.0"
+  }
+}
