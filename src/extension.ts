@@ -7,7 +7,15 @@
  * 3. Command — /grok for CLI status and inspection
  */
 
-import { Type, getModels } from "@earendil-works/pi-ai";
+// Runtime imports through createRequire — @earendil-works/pi-ai is ESM-only
+// and Pi's CJS-based extension loader can't resolve its exports map.
+import { createRequire } from "node:module";
+import type { Type as T_Type } from "@earendil-works/pi-ai";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _piAi: any = createRequire(import.meta.url)("@earendil-works/pi-ai");
+const Type = _piAi.Type as typeof T_Type;
+const getModels = _piAi.getModels as (provider: string) => Array<{ id: string; name: string; reasoning?: boolean; input?: string[]; cost?: { input: number; output: number; cacheRead: number; cacheWrite: number }; contextWindow?: number; maxTokens?: number }>;
+
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
@@ -59,18 +67,18 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
             ? xaiModels.map((m) => ({
                 id: m.id,
                 name: m.name,
-                reasoning: m.reasoning,
-                input: m.input,
-                cost: m.cost,
-                contextWindow: m.contextWindow,
-                maxTokens: m.maxTokens,
+                reasoning: m.reasoning ?? false,
+                input: (m.input ?? ["text"]) as ("text" | "image")[],
+                cost: m.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+                contextWindow: m.contextWindow ?? 1_000_000,
+                maxTokens: m.maxTokens ?? 128_000,
               }))
             : [
                 // Fallback: define a default grok model if none in catalog
                 {
                   id: "grok-4.1",
                   name: "Grok 4.1",
-                  reasoning: true,
+                  reasoning: true as const,
                   input: ["text" as const],
                   contextWindow: 1_000_000,
                   maxTokens: 128_000,

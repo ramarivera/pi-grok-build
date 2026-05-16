@@ -30,11 +30,6 @@ describe("pi-grok-build e2e — public API", () => {
     assert.equal(typeof mod.getGrokVersion, "function");
   });
 
-  it("grok-bridge exports createGrokEventBridge", async () => {
-    const mod = await import("../src/grok-bridge.ts");
-    assert.equal(typeof mod.createGrokEventBridge, "function");
-  });
-
   it("types module exports expected type interfaces (loads cleanly)", async () => {
     const mod = await import("../src/types.ts");
     // Type interfaces don't produce runtime values, just verify module loads

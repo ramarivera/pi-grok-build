@@ -7,7 +7,9 @@
  * the final AssistantMessage.
  */
 
-import { calculateCost } from "@earendil-works/pi-ai";
+// Runtime imports through createRequire — @earendil-works/pi-ai is ESM-only
+// and Pi's CJS-based extension loader can't resolve its exports map.
+import { createRequire } from "node:module";
 import type {
   AssistantMessage,
   AssistantMessageEventStream,
@@ -16,6 +18,9 @@ import type {
   ThinkingContent,
   ToolCall,
 } from "@earendil-works/pi-ai";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _piAi: any = createRequire(import.meta.url)("@earendil-works/pi-ai");
+const calculateCost = _piAi.calculateCost as (model: Model<any>, usage: import("@earendil-works/pi-ai").Usage) => void;
 import type {
   GrokStreamEvent,
   GrokContentBlock,
