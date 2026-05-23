@@ -6,6 +6,7 @@
  *   - "assistant" - a streaming message event (text delta, tool call, etc.)
  *   - "result"    - final result with usage stats
  *   - "system"    - system-level messages (session info, errors)
+ *   - "error"     - top-level CLI errors, such as invalid model IDs
  */
 
 /** Effort level for Grok headless mode. */
@@ -60,10 +61,17 @@ export interface GrokSystemEvent {
   session_id?: string;
 }
 
+export interface GrokErrorEvent {
+  type: "error";
+  message?: string;
+  error?: string;
+}
+
 export type GrokNdjsonMessage =
   | GrokStreamEvent
   | GrokResultEvent
-  | GrokSystemEvent;
+  | GrokSystemEvent
+  | GrokErrorEvent;
 
 /** Content block in a Grok assistant message. */
 export interface GrokContentBlock {

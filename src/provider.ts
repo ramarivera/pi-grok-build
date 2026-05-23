@@ -19,7 +19,7 @@ import {
   captureStderr,
   buildGrokArgs,
 } from "./grok-runner.ts";
-import { parseGrokLine, isStreamEvent, isResultEvent } from "./grok-parser.ts";
+import { parseGrokLine, isStreamEvent, isResultEvent, isErrorEvent } from "./grok-parser.ts";
 import { createGrokEventBridge } from "./grok-bridge.ts";
 import type { GrokNdjsonMessage, GrokSpawnOptions } from "./types.ts";
 
@@ -235,13 +235,14 @@ export function streamViaGrok(
           ...output,
           content: output.content?.length
             ? output.content
-            : [{ type: "text" as const, text: `Error: ${errMsg}` }],
-          stopReason: "stop" as const,
+            : [{ type: "text" as const, text: `Grok CLI error: ${errMsg}` }],
+          stopReason: "error" as const,
+          errorMessage: errMsg,
         };
         stream.push({
-          type: "done",
-          reason: "stop",
-          message: errorMessage,
+          type: "error",
+          reason: "error",
+          error: errorMessage,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);
         stream.end();
@@ -314,6 +315,11 @@ export function streamViaGrok(
           clearTimeout(inactivityTimer);
           if (proc) forceKillProcess(proc);
           rl.close();
+        } else if (isErrorEvent(msg)) {
+          endStreamWithError(msg.message ?? msg.error ?? "Unknown error from Grok CLI");
+          clearTimeout(inactivityTimer);
+          if (proc) forceKillProcess(proc);
+          rl.close();
         }
         // System events are silently ignored
       });
@@ -354,7 +360,24 @@ export function streamViaGrok(
       stream.push({
         type: "error",
         reason: "error",
-        error: message,
+        error: {
+          role: "assistant",
+          content: [{ type: "text" as const, text: `Grok CLI error: ${message}` }],
+          api: "pi-grok-build",
+          provider: model.provider,
+          model: model.id,
+          usage: {
+            input: 0,
+            output: 0,
+            cacheRead: 0,
+            cacheWrite: 0,
+            totalTokens: 0,
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+          },
+          stopReason: "error",
+          errorMessage: message,
+          timestamp: Date.now(),
+        },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       stream.end();

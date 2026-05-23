@@ -13,6 +13,7 @@ import {
   parseGrokModelsOutput,
   detectGrokBinary,
 } from "../src/grok-runner.ts";
+import { isErrorEvent, parseGrokLine } from "../src/grok-parser.ts";
 
 describe("buildGrokArgs", () => {
   it("builds minimal args", () => {
@@ -285,6 +286,17 @@ describe("runGrokTrace", () => {
   it("returns something", () => {
     const result = runGrokTrace();
     assert.ok(typeof result.stdout === "string");
+  });
+});
+
+describe("parseGrokLine", () => {
+  it("classifies top-level Grok CLI error events", () => {
+    const msg = parseGrokLine('{"type":"error","message":"unknown model id"}');
+    assert.ok(msg);
+    assert.equal(isErrorEvent(msg), true);
+    if (isErrorEvent(msg)) {
+      assert.equal(msg.message, "unknown model id");
+    }
   });
 });
 

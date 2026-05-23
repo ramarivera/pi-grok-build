@@ -52,6 +52,15 @@ export function isResultEvent(
 }
 
 /**
+ * Check if a parsed message is a top-level Grok CLI error event.
+ */
+export function isErrorEvent(
+  msg: GrokNdjsonMessage,
+): msg is import("./types.ts").GrokErrorEvent {
+  return msg.type === "error";
+}
+
+/**
  * Check if a parsed message is a system event.
  */
 export function isSystemEvent(

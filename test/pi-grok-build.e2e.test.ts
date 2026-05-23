@@ -18,6 +18,7 @@ describe("pi-grok-build e2e — public API", () => {
     assert.equal(typeof mod.isStreamEvent, "function");
     assert.equal(typeof mod.isResultEvent, "function");
     assert.equal(typeof mod.isSystemEvent, "function");
+    assert.equal(typeof mod.isErrorEvent, "function");
   });
 
   it("grok-runner exports all expected functions", async () => {
@@ -198,7 +199,7 @@ describe("pi-grok-build e2e — .pi shim loading", () => {
 describe("pi-grok-build e2e — provider stream integration", () => {
   it("buildSpawnOptions maps all advanced headless flags from Pi options", async () => {
     const { buildSpawnOptions } = await import("../src/provider.ts");
-    const model = { id: "grok-2-vision", provider: "xai" } as any;
+    const model = { id: "grok-build", provider: "xai" } as any;
     const opts = buildSpawnOptions(model, {
       effort: "xhigh",
       noPlan: true,
@@ -207,7 +208,7 @@ describe("pi-grok-build e2e — provider stream integration", () => {
       permissionMode: "auto",
       rules: "Use TypeScript",
     });
-    assert.equal(opts.modelId, "grok-2-vision");
+    assert.equal(opts.modelId, "grok-build");
     assert.equal(opts.effort, "xhigh");
     assert.equal(opts.noPlan, true);
     assert.equal(opts.disableWebSearch, true);

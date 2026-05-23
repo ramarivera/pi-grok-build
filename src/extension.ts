@@ -119,46 +119,34 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
         }
 
         // --- Provider Registration ---
-        // Map xAI/Grok models from Pi's model catalog
-        const xaiModels = getModels("xai");
+        // This provider routes through the local Grok CLI, so only advertise model IDs
+        // the CLI itself accepts. Pi's xAI model catalog may contain API model IDs that
+        // Grok Build rejects, which makes the UI selectable but dead at submit time.
+        const cliModelResult = runGrokModels();
+        const cliModels = cliModelResult.ok ? parseGrokModelsOutput(cliModelResult.stdout) : [];
         const models =
-          xaiModels.length > 0
-            ? xaiModels.map((m) => ({
+          cliModels.length > 0
+            ? cliModels.map((m) => ({
                 id: m.id,
                 name: m.name,
-                reasoning: m.reasoning ?? false,
-                input: (m.input ?? ["text"]) as ("text" | "image")[],
-                cost: m.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-                contextWindow: m.contextWindow ?? 1_000_000,
-                maxTokens: m.maxTokens ?? 128_000,
+                reasoning: true,
+                input: ["text" as const, "image" as const],
+                cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+                contextWindow: 1_000_000,
+                maxTokens: 128_000,
               }))
             : [
-                // Fallback: define sensible defaults for known Grok models
                 {
-                  id: "grok-4.3",
-                  name: "Grok 4.3",
+                  id: "grok-build",
+                  name: "Grok Build",
                   reasoning: true as const,
                   input: ["text" as const, "image" as const],
                   contextWindow: 1_000_000,
                   maxTokens: 128_000,
                   cost: {
-                    input: 2,
-                    output: 8,
-                    cacheRead: 0.5,
-                    cacheWrite: 0,
-                  },
-                },
-                {
-                  id: "grok-2-vision",
-                  name: "Grok 2 Vision",
-                  reasoning: false as const,
-                  input: ["text" as const, "image" as const],
-                  contextWindow: 1_000_000,
-                  maxTokens: 128_000,
-                  cost: {
-                    input: 2,
-                    output: 8,
-                    cacheRead: 0.5,
+                    input: 0,
+                    output: 0,
+                    cacheRead: 0,
                     cacheWrite: 0,
                   },
                 },
