@@ -10,43 +10,6 @@ import {
   isSystemEvent,
 } from "../src/grok-parser.ts";
 
-// buildGrokPrompt lives in provider.ts which has pi-ai imports.
-// Replicate minimal logic here for unit coverage.
-function buildGrokPrompt(context: {
-  messages: Array<{ role: string; content: unknown; toolName?: string }>;
-}): string {
-  const parts: string[] = [];
-  for (const msg of context.messages) {
-    if (msg.role === "user") {
-      parts.push("USER:");
-      parts.push(contentToText(msg.content));
-    } else if (msg.role === "assistant") {
-      parts.push("ASSISTANT:");
-      parts.push(contentToText(msg.content));
-    } else if (msg.role === "toolResult") {
-      parts.push(`TOOL RESULT (${msg.toolName ?? "unknown"}):`);
-      parts.push(contentToText(msg.content));
-    }
-  }
-  return parts.join("\n") || "";
-}
-
-function contentToText(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return "";
-  return content
-    .map((block: Record<string, unknown>) => {
-      if (block.type === "text") return String(block.text ?? "");
-      if (block.type === "toolCall") {
-        return `[Tool call: ${block.name} args=${JSON.stringify(block.arguments ?? {})}]`;
-      }
-      if (block.type === "thinking") return "";
-      if (block.type === "image") return "[Image]";
-      return "";
-    })
-    .join("\n");
-}
-
 describe("GrokBuildOptions contract", () => {
   it("accepts commandName and toolNamePrefix", () => {
     const opts: { commandName?: string; toolNamePrefix?: string } = {
@@ -122,55 +85,55 @@ describe("parseGrokLine", () => {
   it("returns null for malformed JSON", () => {
     assert.equal(parseGrokLine("{broken json"), null);
   });
+
+  it("returns null for JSON primitives", () => {
+    assert.equal(parseGrokLine("123"), null);
+    assert.equal(parseGrokLine('"string"'), null);
+    assert.equal(parseGrokLine("true"), null);
+  });
+
+  it("returns null for JSON null", () => {
+    assert.equal(parseGrokLine("null"), null);
+  });
+
+  it("parses deeply nested stream events", () => {
+    const line = JSON.stringify({
+      type: "assistant",
+      delta: {
+        type: "text_delta",
+        text: "chunk",
+        stop_reason: "end_turn",
+      },
+      index: 0,
+    });
+    const msg = parseGrokLine(line);
+    assert.ok(msg);
+    assert.equal((msg as any).delta.type, "text_delta");
+    assert.equal((msg as any).delta.text, "chunk");
+  });
 });
 
-describe("buildGrokPrompt", () => {
-  it("builds prompt with user messages", () => {
-    const result = buildGrokPrompt({
-      messages: [{ role: "user", content: "Hello" }],
-    });
-    assert.ok(result.includes("USER:"));
-    assert.ok(result.includes("Hello"));
-  });
+describe("isStreamEvent / isResultEvent / isSystemEvent", () => {
+  it("classifies correctly", () => {
+    const stream = { type: "assistant" } as any;
+    const result = { type: "result" } as any;
+    const system = { type: "system" } as any;
+    const unknown = { type: "unknown" } as any;
 
-  it("builds prompt with assistant messages", () => {
-    const result = buildGrokPrompt({
-      messages: [
-        { role: "user", content: "Hi" },
-        { role: "assistant", content: [{ type: "text", text: "Hello there" }] },
-      ],
-    });
-    assert.ok(result.includes("USER:"));
-    assert.ok(result.includes("ASSISTANT:"));
-    assert.ok(result.includes("Hello there"));
-  });
+    assert.equal(isStreamEvent(stream), true);
+    assert.equal(isResultEvent(stream), false);
+    assert.equal(isSystemEvent(stream), false);
 
-  it("builds prompt with tool results", () => {
-    const result = buildGrokPrompt({
-      messages: [
-        { role: "user", content: "Search" },
-        {
-          role: "toolResult",
-          content: "Found 3 results",
-          toolName: "grep",
-        },
-      ],
-    });
-    assert.ok(result.includes("TOOL RESULT (grep):"));
-    assert.ok(result.includes("Found 3 results"));
-  });
+    assert.equal(isStreamEvent(result), false);
+    assert.equal(isResultEvent(result), true);
+    assert.equal(isSystemEvent(result), false);
 
-  it("handles empty messages", () => {
-    const result = buildGrokPrompt({ messages: [] });
-    assert.equal(result, "");
-  });
+    assert.equal(isStreamEvent(system), false);
+    assert.equal(isResultEvent(system), false);
+    assert.equal(isSystemEvent(system), true);
 
-  it("handles image content as placeholder", () => {
-    const result = buildGrokPrompt({
-      messages: [
-        { role: "user", content: [{ type: "image", data: "base64..." }] },
-      ],
-    });
-    assert.ok(result.includes("[Image]"));
+    assert.equal(isStreamEvent(unknown), false);
+    assert.equal(isResultEvent(unknown), false);
+    assert.equal(isSystemEvent(unknown), false);
   });
 });

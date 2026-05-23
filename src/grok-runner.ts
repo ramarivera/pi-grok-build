@@ -9,13 +9,13 @@
 import spawn from "cross-spawn";
 import { execSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import type { GrokRunResult, GrokSpawnOptions } from "./types.ts";
+import type { GrokRunResult, GrokSpawnOptions, GrokModelDescriptor } from "./types.ts";
 
 /** Known grok CLI binary names to try. */
 const GROK_BINARIES = ["grok"] as const;
 
 /** Detect the installed grok binary on PATH. */
-function detectGrokBinary(): string {
+export function detectGrokBinary(): string {
   for (const bin of GROK_BINARIES) {
     try {
       execSync(`command -v ${bin}`, { stdio: "pipe", timeout: 5000 });
@@ -32,26 +32,14 @@ function detectGrokBinary(): string {
 }
 
 /**
- * Spawn a Grok CLI subprocess in one-shot headless mode.
- *
- * Uses `grok -p "prompt" --output-format streaming-json` to send a prompt
- * and receive streaming JSON events on stdout.
- *
- * @param prompt - The prompt text to send
- * @param options - Optional cwd, AbortSignal, model, session settings
- * @returns The spawned ChildProcess with piped stdin/stdout/stderr
+ * Build the argument array for `grok -p` from GrokSpawnOptions.
+ * Centralizes flag mapping so spawnGrok and tests share the same logic.
  */
-export function spawnGrok(
+export function buildGrokArgs(
   prompt: string,
-  options: GrokSpawnOptions = {},
-): ChildProcess {
-  const binary = detectGrokBinary();
-  const args: string[] = [
-    "-p",
-    prompt,
-    "--output-format",
-    "streaming-json",
-  ];
+  options: GrokSpawnOptions,
+): string[] {
+  const args: string[] = ["-p", prompt, "--output-format", "streaming-json"];
 
   if (options.modelId) {
     args.push("--model", options.modelId);
@@ -65,9 +53,150 @@ export function spawnGrok(
     args.push("--resume", options.resumeSessionId);
   }
 
+  if (options.continueSession) {
+    args.push("--continue");
+  }
+
+  if (options.workingDirectory) {
+    args.push("--cwd", options.workingDirectory);
+  }
+
   if (options.alwaysApprove) {
     args.push("--always-approve");
   }
+
+  if (options.effort) {
+    args.push("--effort", options.effort);
+  }
+
+  if (options.maxTurns != null) {
+    args.push("--max-turns", String(options.maxTurns));
+  }
+
+  if (options.reasoningEffort) {
+    args.push("--reasoning-effort", options.reasoningEffort);
+  }
+
+  if (options.check) {
+    args.push("--check");
+  }
+
+  if (options.bestOfN != null) {
+    args.push("--best-of-n", String(options.bestOfN));
+  }
+
+  if (options.verbatim) {
+    args.push("--verbatim");
+  }
+
+  if (options.disableWebSearch) {
+    args.push("--disable-web-search");
+  }
+
+  if (options.noSubagents) {
+    args.push("--no-subagents");
+  }
+
+  if (options.noPlan) {
+    args.push("--no-plan");
+  }
+
+  if (options.noMemory) {
+    args.push("--no-memory");
+  }
+
+  if (options.experimentalMemory) {
+    args.push("--experimental-memory");
+  }
+
+  if (options.permissionMode) {
+    args.push("--permission-mode", options.permissionMode);
+  }
+
+  if (options.rules) {
+    args.push("--rules", options.rules);
+  }
+
+  if (options.systemPromptOverride) {
+    args.push("--system-prompt-override", options.systemPromptOverride);
+  }
+
+  if (options.tools) {
+    args.push("--tools", options.tools);
+  }
+
+  if (options.disallowedTools) {
+    args.push("--disallowed-tools", options.disallowedTools);
+  }
+
+  if (options.allowRules) {
+    for (const rule of options.allowRules) {
+      args.push("--allow", rule);
+    }
+  }
+
+  if (options.denyRules) {
+    for (const rule of options.denyRules) {
+      args.push("--deny", rule);
+    }
+  }
+
+  if (options.sandbox) {
+    args.push("--sandbox", options.sandbox);
+  }
+
+  // 0.1.216 additions
+  if (options.restoreCode) {
+    args.push("--restore-code");
+  }
+
+  if (options.agent) {
+    args.push("--agent", options.agent);
+  }
+
+  if (options.agents) {
+    args.push("--agents", options.agents);
+  }
+
+  if (options.worktree !== undefined) {
+    if (options.worktree === true) {
+      args.push("--worktree");
+    } else if (typeof options.worktree === "string") {
+      args.push("--worktree", options.worktree);
+    }
+  }
+
+  if (options.oauth) {
+    args.push("--oauth");
+  }
+
+  if (options.promptFile) {
+    args.push("--prompt-file", options.promptFile);
+  }
+
+  if (options.promptJson) {
+    args.push("--prompt-json", options.promptJson);
+  }
+
+  return args;
+}
+
+/**
+ * Spawn a Grok CLI subprocess in one-shot headless mode.
+ *
+ * Uses `grok -p "prompt" --output-format streaming-json` to send a prompt
+ * and receive streaming JSON events on stdout.
+ *
+ * @param prompt - The prompt text to send
+ * @param options - Optional cwd, AbortSignal, model, session settings, and new headless flags
+ * @returns The spawned ChildProcess with piped stdin/stdout/stderr
+ */
+export function spawnGrok(
+  prompt: string,
+  options: GrokSpawnOptions = {},
+): ChildProcess {
+  const binary = detectGrokBinary();
+  const args = buildGrokArgs(prompt, options);
 
   const proc = spawn(binary, args, {
     stdio: ["pipe", "pipe", "pipe"],
@@ -93,11 +222,22 @@ export function validateGrokPresence(): void {
 /**
  * Check if Grok CLI is authenticated.
  * Returns true/false — does not throw.
+ *
+ * Uses `grok models` as the auth probe and checks stdout for the string
+ * "not authenticated". `grok --version` does not require auth, so we
+ * prefer a command that actually exercises auth.
  */
 export function validateGrokAuth(): boolean {
   try {
     const binary = detectGrokBinary();
-    execSync(`${binary} --version`, { stdio: "pipe", timeout: 5000 });
+    const stdout = execSync(`${binary} models`, {
+      stdio: "pipe",
+      timeout: 15_000,
+      encoding: "utf-8",
+    });
+    if (/not authenticated/i.test(stdout)) {
+      return false;
+    }
     return true;
   } catch {
     return false;
@@ -187,6 +327,120 @@ export function runGrokInspect(
   options: { cwd?: string } = {},
 ): GrokRunResult {
   return runGrokCommand(["inspect"], options);
+}
+
+/**
+ * Run `grok models` and return available models.
+ */
+export function runGrokModels(
+  options: { cwd?: string } = {},
+): GrokRunResult {
+  return runGrokCommand(["models"], options);
+}
+
+/**
+ * Run `grok sessions` and return session list.
+ */
+export function runGrokSessions(
+  options: { cwd?: string } = {},
+): GrokRunResult {
+  return runGrokCommand(["sessions"], options);
+}
+
+/**
+ * Run `grok memory` and return memory entries.
+ */
+export function runGrokMemory(
+  options: { cwd?: string } = {},
+): GrokRunResult {
+  return runGrokCommand(["memory"], options);
+}
+
+/**
+ * Run `grok share` for the current or specified session.
+ */
+export function runGrokShare(
+  sessionId?: string,
+  options: { cwd?: string } = {},
+): GrokRunResult {
+  const args = sessionId ? ["share", sessionId] : ["share"];
+  return runGrokCommand(args, options);
+}
+
+/**
+ * Run `grok trace` to export session trace data.
+ */
+export function runGrokTrace(
+  options: { cwd?: string } = {},
+): GrokRunResult {
+  return runGrokCommand(["trace"], options);
+}
+
+/**
+ * Parse the JSON output of `grok models --output-format json` (or plain) into
+ * a typed array of model descriptors.
+ *
+ * Falls back to regex extraction if JSON parsing fails.
+ */
+export function parseGrokModelsOutput(stdout: string): GrokModelDescriptor[] {
+  const trimmed = stdout.trim();
+  if (!trimmed) return [];
+
+  // Try JSON first
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .filter((m) => m && typeof m.id === "string")
+        .map((m) => ({ id: m.id, name: m.name ?? m.id }));
+    }
+    if (parsed && typeof parsed === "object" && Array.isArray(parsed.models)) {
+      return parsed.models
+        .filter((m: Record<string, unknown>) => m && typeof m.id === "string")
+        .map((m: Record<string, unknown>) => ({
+          id: String(m.id),
+          name: String(m.name ?? m.id),
+        }));
+    }
+  } catch {
+    // Fall through to regex extraction
+  }
+
+  // Plain-text fallback: handles grok models output like:
+  //   * grok-build (default)
+  //   - kimi-k2p6-turbo-firepass
+  const models: GrokModelDescriptor[] = [];
+  const seen = new Set<string>();
+  for (const line of trimmed.split("\n")) {
+    // Skip headers, empty lines, and auth notices
+    if (!line.trim() || line.includes(":") || /not authenticated/i.test(line)) {
+      continue;
+    }
+    // Match bullet-prefixed model lines: * model-id (optional meta)
+    // or simple indented lines:   model-id   Display Name
+    const bulletMatch = line.match(/^[\s*\-]+([a-z0-9._\-]+)(?:\s+\(([^)]+)\))?\s*$/i);
+    if (bulletMatch) {
+      const id = bulletMatch[1]!;
+      const meta = bulletMatch[2];
+      const name = meta && meta !== "default" ? `${id} (${meta})` : id;
+      if (!seen.has(id)) {
+        seen.add(id);
+        models.push({ id, name });
+      }
+      continue;
+    }
+    // Fallback: tabular/space-separated lines
+    const tabMatch = line.match(/^\s*([a-z0-9._\-]+)\s+(.*?)\s*$/i);
+    if (tabMatch) {
+      const id = tabMatch[1]!;
+      const name = tabMatch[2]!;
+      if (!seen.has(id)) {
+        seen.add(id);
+        models.push({ id, name: name || id });
+      }
+    }
+  }
+  return models;
 }
 
 /** Registry of active subprocesses for cleanup on teardown. */

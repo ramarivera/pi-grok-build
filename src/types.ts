@@ -8,6 +8,27 @@
  *   - "system"    - system-level messages (session info, errors)
  */
 
+/** Effort level for Grok headless mode. */
+export type GrokEffortLevel = "low" | "medium" | "high" | "xhigh" | "max";
+
+/** Permission mode for Grok CLI. */
+export type GrokPermissionMode =
+  | "default"
+  | "acceptEdits"
+  | "auto"
+  | "dontAsk"
+  | "bypassPermissions"
+  | "plan";
+
+/** Reasoning effort for reasoning models (0.1.216 surface). */
+export type GrokReasoningEffort =
+  | "none"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh";
+
 /** A single Grok streaming-json NDJSON message. */
 export interface GrokStreamEvent {
   type: "assistant";
@@ -97,6 +118,94 @@ export interface GrokSpawnOptions {
   sessionId?: string;
   resumeSessionId?: string;
   alwaysApprove?: boolean;
+
+  // -- Headless capabilities (current as of grok 0.1.216 per live --help + GROK_INSIGHTS §17) --
+
+  /** Continue the most recent session for the current working directory. */
+  continueSession?: boolean;
+
+  /** Set the working directory via --cwd flag (distinct from spawn cwd). */
+  workingDirectory?: string;
+
+  /** Effort level [low, medium, high, xhigh, max]. */
+  effort?: GrokEffortLevel;
+
+  /** Maximum number of agent turns. */
+  maxTurns?: number;
+
+  /** Reasoning effort for reasoning models. */
+  reasoningEffort?: GrokReasoningEffort;
+
+  /** Append a self-verification loop to the prompt. */
+  check?: boolean;
+
+  /** Run the task N ways in parallel and pick the best. */
+  bestOfN?: number;
+
+  /** Send the prompt exactly as given (no template wrapping). */
+  verbatim?: boolean;
+
+  /** Disable web search and web fetch tools. */
+  disableWebSearch?: boolean;
+
+  /** Disable subagent spawning. */
+  noSubagents?: boolean;
+
+  /** Disable plan mode. */
+  noPlan?: boolean;
+
+  /** Disable cross-session memory for this session. */
+  noMemory?: boolean;
+
+  /** Enable experimental cross-session memory. */
+  experimentalMemory?: boolean;
+
+  /** Permission mode for the session. */
+  permissionMode?: GrokPermissionMode;
+
+  /** Extra rules to append to the system prompt. */
+  rules?: string;
+
+  /** Override the agent's system prompt entirely. */
+  systemPromptOverride?: string;
+
+  /** Built-in tools to allow (comma-separated). */
+  tools?: string;
+
+  /** Built-in tools to remove (comma-separated). */
+  disallowedTools?: string;
+
+  /** Permission allow rules (repeatable). */
+  allowRules?: string[];
+
+  /** Permission deny rules (repeatable). */
+  denyRules?: string[];
+
+  /** Sandbox profile for filesystem and network access. */
+  sandbox?: string;
+
+  // -- 0.1.216 additions (from GROK_INSIGHTS §17 + live `grok --help`) --
+
+  /** Restore the original session's git commit when resuming (pairs with --resume / --continue). */
+  restoreCode?: boolean;
+
+  /** Agent name or path to agent definition file (--agent). */
+  agent?: string;
+
+  /** Inline subagent definitions as JSON string (--agents <JSON>). Powerful for custom orchestration. */
+  agents?: string;
+
+  /** Start in a new git worktree. true = unnamed, string = named worktree (--worktree / -w). */
+  worktree?: boolean | string;
+
+  /** Force OAuth login flow (--oauth). */
+  oauth?: boolean;
+
+  /** Single-turn prompt from a file instead of inline (--prompt-file). */
+  promptFile?: string;
+
+  /** Single-turn prompt as JSON content blocks (--prompt-json). */
+  promptJson?: string;
 }
 
 /** Result of running a Grok command (for the grok_run tool). */
@@ -106,4 +215,18 @@ export interface GrokRunResult {
   stdout: string;
   stderr: string;
   truncated: boolean;
+}
+
+/** Model descriptor returned by grok inspect / grok models. */
+export interface GrokModelDescriptor {
+  id: string;
+  name: string;
+}
+
+/** Session descriptor returned by grok sessions. */
+export interface GrokSessionDescriptor {
+  id: string;
+  title?: string;
+  created_at?: string;
+  updated_at?: string;
 }

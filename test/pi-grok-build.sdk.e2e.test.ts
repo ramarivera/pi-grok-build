@@ -1,0 +1,144 @@
+import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { after, before, test } from "node:test";
+import {
+	createAgentSession,
+	DefaultResourceLoader,
+	SessionManager,
+	type ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
+
+const repoRoot = process.cwd();
+let agentDir: string;
+
+before(async () => {
+	agentDir = await mkdtemp(join(tmpdir(), "pi-grok-build-e2e-"));
+});
+
+after(async () => {
+	if (agentDir) {
+		await rm(agentDir, { recursive: true, force: true });
+	}
+});
+
+test("Pi SDK discovers the project-local pi-grok-build extension", async () => {
+	const loader = new DefaultResourceLoader({
+		cwd: repoRoot,
+		agentDir,
+		noSkills: true,
+		noPromptTemplates: true,
+		noThemes: true,
+		noContextFiles: true,
+	});
+	await loader.reload();
+
+	const extensions = loader.getExtensions();
+	assert.deepEqual(extensions.errors, []);
+	assert.ok(
+		extensions.extensions.some((extension) =>
+			extension.resolvedPath.endsWith(".pi/extensions/pi-grok-build/index.ts"),
+		),
+		"expected DefaultResourceLoader to discover .pi/extensions/pi-grok-build/index.ts",
+	);
+});
+
+test("Pi SDK exposes pi-grok-build commands and tools through live runtime", async () => {
+	const loader = new DefaultResourceLoader({
+		cwd: repoRoot,
+		agentDir,
+		noSkills: true,
+		noPromptTemplates: true,
+		noThemes: true,
+		noContextFiles: true,
+	});
+	await loader.reload();
+
+	const { session } = await createAgentSession({
+		cwd: repoRoot,
+		agentDir,
+		resourceLoader: loader,
+		sessionManager: SessionManager.inMemory(repoRoot),
+		noTools: "all",
+	});
+
+	try {
+		await session.bindExtensions({});
+
+		assert.ok(
+			session.extensionRunner.getCommand("local-grok"),
+			"expected /local-grok command to be registered",
+		);
+
+		const toolNames = session.extensionRunner
+			.getAllRegisteredTools()
+			.map((tool) => tool.definition.name);
+
+		assert.ok(
+			toolNames.includes("local_grok_inspect"),
+			"expected local_grok_inspect tool to be registered",
+		);
+		assert.ok(
+			toolNames.includes("local_grok_run"),
+			"expected local_grok_run tool to be registered",
+		);
+		assert.ok(
+			toolNames.includes("local_grok_models"),
+			"expected local_grok_models tool to be registered",
+		);
+		assert.ok(
+			toolNames.includes("local_grok_sessions"),
+			"expected local_grok_sessions tool to be registered",
+		);
+		assert.ok(
+			toolNames.includes("local_grok_memory"),
+			"expected local_grok_memory tool to be registered",
+		);
+		assert.ok(
+			toolNames.includes("local_grok_imagine_image"),
+			"expected local_grok_imagine_image tool to be registered",
+		);
+		assert.ok(
+			toolNames.includes("local_grok_imagine_video"),
+			"expected local_grok_imagine_video tool to be registered",
+		);
+		assert.ok(
+			toolNames.includes("local_grok_tts"),
+			"expected local_grok_tts tool to be registered",
+		);
+		assert.ok(
+			toolNames.includes("local_grok_stt"),
+			"expected local_grok_stt tool to be registered",
+		);
+
+		// Execute grok_inspect tool live
+		const inspectTool = session.extensionRunner.getToolDefinition("local_grok_inspect");
+		assert.ok(inspectTool, "expected local_grok_inspect definition to be retrievable");
+		const inspectResult = await inspectTool.execute(
+			"call-inspect",
+			{},
+			undefined,
+			undefined,
+			session.createReplacedSessionContext() as ExtensionContext,
+		);
+		const details = inspectResult.details as { version: string; authed: boolean };
+		assert.ok(typeof details.version === "string");
+		assert.ok(typeof details.authed === "boolean");
+
+		// Execute grok_models tool live
+		const modelsTool = session.extensionRunner.getToolDefinition("local_grok_models");
+		assert.ok(modelsTool, "expected local_grok_models definition to be retrievable");
+		const modelsResult = await modelsTool.execute(
+			"call-models",
+			{},
+			undefined,
+			undefined,
+			session.createReplacedSessionContext() as ExtensionContext,
+		);
+		const modelsDetails = modelsResult.details as { models: Array<{ id: string; name: string }> };
+		assert.ok(Array.isArray(modelsDetails.models));
+	} finally {
+		session.dispose();
+	}
+});

@@ -17,23 +17,69 @@ import {
   registerProcess,
   forceKillProcess,
   captureStderr,
+  buildGrokArgs,
 } from "./grok-runner.ts";
 import { parseGrokLine, isStreamEvent, isResultEvent } from "./grok-parser.ts";
 import { createGrokEventBridge } from "./grok-bridge.ts";
-import type { GrokNdjsonMessage } from "./types.ts";
+import type { GrokNdjsonMessage, GrokSpawnOptions } from "./types.ts";
 
 /** Inactivity timeout: kill subprocess if no stdout for 180 seconds. */
 const INACTIVITY_TIMEOUT_MS = 180_000;
 
-/** Extended stream options with optional session info. */
+/** Extended stream options with optional session info and advanced headless flags. */
 type StreamViaGrokOptions = SimpleStreamOptions & {
   cwd?: string;
   sessionId?: string;
+
+  // Advanced headless passthroughs
+  effort?: GrokSpawnOptions["effort"];
+  maxTurns?: GrokSpawnOptions["maxTurns"];
+  reasoningEffort?: GrokSpawnOptions["reasoningEffort"];
+  check?: GrokSpawnOptions["check"];
+  bestOfN?: GrokSpawnOptions["bestOfN"];
+  verbatim?: GrokSpawnOptions["verbatim"];
+  disableWebSearch?: GrokSpawnOptions["disableWebSearch"];
+  noSubagents?: GrokSpawnOptions["noSubagents"];
+  noPlan?: GrokSpawnOptions["noPlan"];
+  noMemory?: GrokSpawnOptions["noMemory"];
+  experimentalMemory?: GrokSpawnOptions["experimentalMemory"];
+  permissionMode?: GrokSpawnOptions["permissionMode"];
+  rules?: GrokSpawnOptions["rules"];
+  systemPromptOverride?: GrokSpawnOptions["systemPromptOverride"];
+  tools?: GrokSpawnOptions["tools"];
+  disallowedTools?: GrokSpawnOptions["disallowedTools"];
+  allowRules?: GrokSpawnOptions["allowRules"];
+  denyRules?: GrokSpawnOptions["denyRules"];
+  sandbox?: GrokSpawnOptions["sandbox"];
+  workingDirectory?: GrokSpawnOptions["workingDirectory"];
+  continueSession?: GrokSpawnOptions["continueSession"];
+
+  // 0.1.216 passthroughs
+  restoreCode?: GrokSpawnOptions["restoreCode"];
+  agent?: GrokSpawnOptions["agent"];
+  agents?: GrokSpawnOptions["agents"];
+  worktree?: GrokSpawnOptions["worktree"];
+  oauth?: GrokSpawnOptions["oauth"];
+  promptFile?: GrokSpawnOptions["promptFile"];
+  promptJson?: GrokSpawnOptions["promptJson"];
 };
+
+/** Pi content block shape (minimal). */
+interface PiContentBlock {
+  type: string;
+  text?: string;
+  name?: string;
+  arguments?: Record<string, unknown>;
+  thinking?: string;
+  data?: string; // base64 image data
+  mimeType?: string;
+}
 
 /**
  * Build a flat text prompt from Pi conversation context.
  * Labels messages with USER: / ASSISTANT: / TOOL RESULT: roles.
+ *
+ * Supports image placeholders for vision models.
  */
 export function buildGrokPrompt(context: {
   messages: Array<{ role: string; content: unknown; toolName?: string }>;
@@ -63,7 +109,7 @@ function contentToText(content: unknown): string {
   if (!Array.isArray(content)) return "";
 
   return content
-    .map((block: Record<string, unknown>) => {
+    .map((block: PiContentBlock) => {
       if (block.type === "text") return String(block.text ?? "");
       if (block.type === "toolCall") {
         return `[Tool call: ${block.name} args=${JSON.stringify(block.arguments ?? {})}]`;
@@ -73,6 +119,72 @@ function contentToText(content: unknown): string {
       return "";
     })
     .join("\n");
+}
+
+/**
+ * Detect if any message in the context contains image content.
+ * Returns true if a vision-capable model should be used.
+ */
+export function contextHasImages(context: {
+  messages: Array<{ role: string; content: unknown }>;
+}): boolean {
+  for (const msg of context.messages) {
+    if (typeof msg.content === "string") continue;
+    if (!Array.isArray(msg.content)) continue;
+    for (const block of msg.content as PiContentBlock[]) {
+      if (block && block.type === "image") return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Build GrokSpawnOptions from StreamViaGrokOptions.
+ * Bridges Pi provider options to Grok CLI flags.
+ */
+export function buildSpawnOptions(
+  model: Model<any>,
+  options?: StreamViaGrokOptions,
+): GrokSpawnOptions {
+  const spawnOpts: GrokSpawnOptions = {
+    modelId: model.id,
+    alwaysApprove: true,
+  };
+
+  if (options?.cwd !== undefined) spawnOpts.cwd = options.cwd;
+  if (options?.sessionId) spawnOpts.sessionId = options.sessionId;
+  if (options?.effort) spawnOpts.effort = options.effort;
+  if (options?.maxTurns != null) spawnOpts.maxTurns = options.maxTurns;
+  if (options?.reasoningEffort) spawnOpts.reasoningEffort = options.reasoningEffort;
+  if (options?.check) spawnOpts.check = options.check;
+  if (options?.bestOfN != null) spawnOpts.bestOfN = options.bestOfN;
+  if (options?.verbatim) spawnOpts.verbatim = options.verbatim;
+  if (options?.disableWebSearch) spawnOpts.disableWebSearch = options.disableWebSearch;
+  if (options?.noSubagents) spawnOpts.noSubagents = options.noSubagents;
+  if (options?.noPlan) spawnOpts.noPlan = options.noPlan;
+  if (options?.noMemory) spawnOpts.noMemory = options.noMemory;
+  if (options?.experimentalMemory) spawnOpts.experimentalMemory = options.experimentalMemory;
+  if (options?.permissionMode) spawnOpts.permissionMode = options.permissionMode;
+  if (options?.rules) spawnOpts.rules = options.rules;
+  if (options?.systemPromptOverride) spawnOpts.systemPromptOverride = options.systemPromptOverride;
+  if (options?.tools) spawnOpts.tools = options.tools;
+  if (options?.disallowedTools) spawnOpts.disallowedTools = options.disallowedTools;
+  if (options?.allowRules) spawnOpts.allowRules = options.allowRules;
+  if (options?.denyRules) spawnOpts.denyRules = options.denyRules;
+  if (options?.sandbox) spawnOpts.sandbox = options.sandbox;
+  if (options?.workingDirectory) spawnOpts.workingDirectory = options.workingDirectory;
+  if (options?.continueSession) spawnOpts.continueSession = options.continueSession;
+
+  // 0.1.216 additions
+  if (options?.restoreCode) spawnOpts.restoreCode = options.restoreCode;
+  if (options?.agent) spawnOpts.agent = options.agent;
+  if (options?.agents) spawnOpts.agents = options.agents;
+  if (options?.worktree !== undefined) spawnOpts.worktree = options.worktree;
+  if (options?.oauth) spawnOpts.oauth = options.oauth;
+  if (options?.promptFile) spawnOpts.promptFile = options.promptFile;
+  if (options?.promptJson) spawnOpts.promptJson = options.promptJson;
+
+  return spawnOpts;
 }
 
 /**
@@ -102,14 +214,9 @@ export function streamViaGrok(
       const conversation = buildGrokPrompt(context);
       const fullPrompt = systemPrompt + conversation;
 
-      // Spawn grok subprocess
-      proc = spawnGrok(fullPrompt, {
-        ...(options?.cwd !== undefined ? { cwd: options.cwd } : {}),
-        ...(options?.signal !== undefined ? { signal: options.signal } : {}),
-        modelId: model.id,
-        ...(options?.sessionId !== undefined ? { sessionId: options.sessionId } : {}),
-        alwaysApprove: true,
-      });
+      // Spawn grok subprocess with all advanced options
+      const spawnOpts = buildSpawnOptions(model, options);
+      proc = spawnGrok(fullPrompt, spawnOpts);
       registerProcess(proc);
 
       const getStderr = captureStderr(proc);

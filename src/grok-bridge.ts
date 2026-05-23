@@ -178,7 +178,7 @@ export function createGrokEventBridge(
           id: block.id ?? `tool_${idx}`,
           name: block.name,
           arguments: block.input ?? {},
-          partialJson: JSON.stringify(block.input ?? {}),
+          partialJson: "",
         };
         blocks.push(toolBlock);
         output.content.push({
@@ -229,6 +229,27 @@ export function createGrokEventBridge(
           delta: delta.text,
           partial: output,
         });
+      } else {
+        // Create new text block for this index
+        const tracked: TrackedContentBlock = {
+          type: "text",
+          text: delta.text,
+          index: output.content.length,
+        };
+        blocks.push(tracked);
+        output.content.push({ type: "text" as const, text: delta.text });
+
+        stream.push({
+          type: "text_start",
+          contentIndex: tracked.index,
+          partial: output,
+        });
+        stream.push({
+          type: "text_delta",
+          contentIndex: tracked.index,
+          delta: delta.text,
+          partial: output,
+        });
       }
     } else if (deltaType === "thinking_delta" && delta.thinking != null) {
       const existing = blocks.findIndex(
@@ -242,6 +263,30 @@ export function createGrokEventBridge(
         stream.push({
           type: "thinking_delta",
           contentIndex: existing,
+          delta: delta.thinking,
+          partial: output,
+        });
+      } else {
+        const tracked: TrackedContentBlock = {
+          type: "thinking",
+          text: delta.thinking,
+          index: output.content.length,
+        };
+        blocks.push(tracked);
+        output.content.push({
+          type: "thinking" as const,
+          thinking: delta.thinking,
+          thinkingSignature: "",
+        });
+
+        stream.push({
+          type: "thinking_start",
+          contentIndex: tracked.index,
+          partial: output,
+        });
+        stream.push({
+          type: "thinking_delta",
+          contentIndex: tracked.index,
           delta: delta.thinking,
           partial: output,
         });
@@ -267,6 +312,42 @@ export function createGrokEventBridge(
           delta: delta.partial_json,
           partial: output,
         });
+      } else {
+        // Create new tool block for this index
+        const tracked: TrackedToolBlock = {
+          type: "tool_use",
+          index: output.content.length,
+          id: `tool_${output.content.length}`,
+          name: "unknown",
+          arguments: {},
+          partialJson: delta.partial_json,
+        };
+        blocks.push(tracked);
+        output.content.push({
+          type: "toolCall" as const,
+          id: tracked.id,
+          name: tracked.name,
+          arguments: tracked.arguments,
+        } as ToolCall);
+
+        stream.push({
+          type: "toolcall_start",
+          contentIndex: tracked.index,
+          partial: output,
+        });
+        stream.push({
+          type: "toolcall_delta",
+          contentIndex: tracked.index,
+          delta: delta.partial_json,
+          partial: output,
+        });
+
+        try {
+          tracked.arguments = JSON.parse(tracked.partialJson);
+          (output.content[tracked.index] as ToolCall).arguments = tracked.arguments;
+        } catch {
+          // Partial JSON
+        }
       }
     }
 
