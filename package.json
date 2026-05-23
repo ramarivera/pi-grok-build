@@ -34,6 +34,8 @@
   ],
   "scripts": {
     "test": "tsx --test test/**/*.test.ts",
+    "test:ci": "tsx --test test/grok-bridge.test.ts test/pi-grok-build.test.ts test/provider.test.ts test/xai-api.test.ts",
+    "test:grok": "tsx --test test/grok-runner.test.ts test/pi-grok-build.e2e.test.ts test/pi-grok-build.sdk.e2e.test.ts",
     "typecheck": "npm exec --package typescript -- tsc --noEmit",
     "lint": "npm run typecheck"
   },
