@@ -1,119 +1,133 @@
-# CURRENT_STATE — pi-grok-build reality check
+# CURRENT_STATE — pi-grok-build
 
-## What’s real
+Last updated: 2026-05-24
 
-- `grok` exists, but **not reliably on PATH** for Pi/runtime shells.
-  - Real binary works at `~/.grok/bin/grok`.
-- Real installed Grok CLI version: `0.1.218`.
-- Real CLI models:
-  - `grok-build`
-  - `kimi-k2p6-turbo-firepass`
-- Real streaming format is:
-  - `{"type":"thought","data":"..."}`
-  - `{"type":"text","data":"..."}`
-  - `{"type":"end", ...}`
-- `grok-4.3` is rejected by the actual CLI.
-- Direct CLI call with `grok-build --no-subagents` can emit real text.
+## Current reality
 
-## What was fake / fake-green
+`pi-grok-build` is now a real Pi provider integration for the local Grok Build CLI, with JSONL as the default path and ACP available as a selectable comparison path.
 
-- **Advertised model list was wrong.**
-  - Extension exposed `grok-4.3`, pulled from generic xAI assumptions/catalog vibes, not `grok models`.
+The repo is intentionally not considered final-release complete until the release checklist is run fresh, but the earlier fake-green state has been corrected.
 
-- **Provider stream parser was wrong.**
-  - It parsed older/imagined `assistant/result` events.
-  - Actual CLI text events were ignored.
-  - So Pi got an empty success. That’s your “nothing happens.”
+## Proven so far
 
-- **Error surfacing was wrong.**
-  - Invalid model produced empty `done` instead of a visible error.
-  - This is the unforgivable UX bug.
+- `grok` is called from `PATH` only.
+- The provider uses real `grok models` output instead of generic xAI model guesses.
+- The valid local model is `grok-build`; `grok-4.3` was proven invalid and is no longer advertised.
+- The JSONL parser handles current Grok CLI events:
+  - `thought`
+  - `text`
+  - `end`
+  - top-level errors
+- The provider maps visible text and thinking into Pi assistant stream events.
+- Real Pi text print mode has produced `PI_GROK_OK` through `pi -p`.
+- Real Pi JSON print mode has emitted parseable JSON events containing `PI_GROK_OK`.
+- Selectable ACP mode has produced visible `PI_GROK_OK` through Pi print mode.
+- Missing CLI, invalid model, auth/subprocess/timeout/parse failures are categorized and surfaced through Pi stream `error` events.
+- Unit tests, property tests, Biome checks, and manual Grok/Pi e2e tests exist and have passed during the rebuild sessions.
 
-- **Tests were not reality-rooted enough.**
-  - They proved imports, arg building, registration shape, and some local CLI commands.
-  - They did **not** prove “Pi provider selected in real Pi produces visible assistant text.”
+## Current supported surface
 
-- **CI split was necessary but also hid integration reality.**
-  - `test:ci` is valid for publish safety.
-  - But it must never be treated as “the extension works.”
+### Provider
 
-## Current local patch state
+- Provider id: `pi-grok-build`
+- Primary model: `pi-grok-build/grok-build`
+- Model list source: `grok models`, with fallback only when registration needs to keep diagnostic tools visible
+- Input: text only
+- Reasoning: Grok `thought`/ACP thought chunks mapped to Pi thinking events
 
-There are uncommitted local changes in `~/dev/pi-grok-build`.
+### Integration modes
 
-They attempt to fix:
-- model discovery from real `grok models`
-- parser support for `thought/text/end`
-- visible stream errors
-- binary fallback to `~/.grok/bin/grok`
-- disabling Grok subagents by default for Pi provider calls
+- `PI_GROK_BUILD_MODE=jsonl` — default, one-shot `grok -p --output-format streaming-json`
+- `PI_GROK_BUILD_MODE=acp` — fresh `grok agent --no-leader --always-approve --model <model> stdio` process/session per provider call
 
-But they are **not ready**:
-- `npm run typecheck` fails on one exact optional type issue.
-- `npm run test:grok` fails one outdated assertion expecting binary exactly `"grok"` instead of a real path.
-- Real `pi -p` output verification is still pending.
-- Direct provider smoke did output `PI_GROK_OK` only after binary fallback + parser/subagent changes, but Pi CLI verification is still pending.
+See `docs/integration-modes.md`.
 
-## Layering correction
+### Tools
 
-The extension should **not** hardcode or search private Grok install locations like `~/.grok/bin/grok`.
+Always registered:
 
-If Grok CLI is installed for the user, toolbox/runtime environment should put `grok` on PATH. The extension should call `grok` and surface a real error if it is unavailable.
+- `grok_inspect`
+- `grok_models`
+- `grok_run`
+- `grok_sessions`
+- `grok_memory`
 
-## What to do next — meaningful path
+Registered only when `XAI_API_KEY` or `GROK_CODE_XAI_API_KEY` is configured:
 
-### Option A: salvage narrowly, recommended
+- `grok_imagine_image`
+- `grok_imagine_video`
+- `grok_imagine_video_status`
 
-Make this extension only one thing first:
+Not shipped:
 
-> “Pi provider that calls local Grok Build CLI and streams visible text/errors.”
+- Grok subagent provider behavior
+- `best-of-n` provider behavior
+- voice/TTS/STT tools
+- provider image input
 
-Cut scope temporarily:
-- keep provider
-- keep `/grok status/models/inspect`
-- keep `grok_inspect` / `grok_models`
-- treat image/video/TTS/STT helpers as **experimental or remove from advertised surface**
-- no claims about full xAI API helper suite until separately verified
+## Known limitations / release blockers
 
-Required acceptance test:
+- Branch is local-only until explicitly pushed/released.
+- Final release bead still needs a fresh completion audit and release verification.
+- RPC mode is expected to use the same provider registry path, but explicit RPC acceptance evidence is still a final release item.
+- Interactive mode should be manually smoked before final release if the release claim includes interactive TUI behavior.
+- ACP mode is functional but not persistent; each provider call starts a fresh ACP process/session.
+- xAI media tools are grounded and API-key gated, but live media generation has not been run in this environment because no xAI API key is configured.
+- `bd ready` still warns `beads.role not configured`; this does not block extension tests but should be cleaned up eventually with `git config beads.role maintainer` or `contributor`.
 
-```text
-pi --model pi-grok-build/grok-build -p "Respond exactly PI_GROK_OK"
+## Verification commands
+
+CI-safe:
+
+```bash
+npm run format:check
+npm run lint
+npm run check
+npm run test:ci
 ```
 
-Must visibly output:
+Manual local Grok/Pi:
 
-```text
-PI_GROK_OK
+```bash
+PATH="$HOME/.grok/bin:$PATH" npm run test:e2e
 ```
 
-And bad model must visibly output an error, not empty success.
+Direct Pi smoke:
 
-### Option B: rebuild clean
+```bash
+pi --no-extensions \
+  --extension .pi/extensions/pi-grok-build/index.ts \
+  --model pi-grok-build/grok-build \
+  -p --no-session --no-context-files \
+  "Respond exactly PI_GROK_OK and nothing else."
+```
 
-Archive the current provider implementation and write a tiny one from scratch:
-- detect `grok` via PATH only
-- `grok models`
-- pick `grok-build`
-- spawn `grok -p ... --output-format streaming-json --no-subagents`
-- parse only `thought/text/end/error`
-- emit Pi events
-- add one integration smoke script
+```bash
+pi --no-extensions \
+  --extension .pi/extensions/pi-grok-build/index.ts \
+  --mode json \
+  --model pi-grok-build/grok-build \
+  -p --no-session --no-context-files \
+  "Respond exactly PI_GROK_OK and nothing else."
+```
 
-This is probably cleaner long-term, because the current repo has too much “surface area before truth.”
+Optional ACP smoke:
 
-## Recommendation
+```bash
+PI_GROK_BUILD_MODE=acp pi --no-extensions \
+  --extension .pi/extensions/pi-grok-build/index.ts \
+  --model pi-grok-build/grok-build \
+  -p --no-session --no-context-files \
+  "Respond exactly PI_GROK_OK and nothing else."
+```
 
-Do **Option A**, but brutally reduce the definition of done.
+Optional live media smoke:
 
-No more “extension passes tests.” The only meaningful definition is:
+```bash
+PI_GROK_BUILD_RUN_MEDIA_E2E=1 XAI_API_KEY=... npm run test:e2e:grok -- test/e2e/manual/xai-media.e2e.test.ts
+```
 
-1. `grok models` drives Pi’s model list.
-2. `pi-grok-build/grok-build` is selectable.
-3. `pi -p` with that model visibly returns text.
-4. invalid CLI/model/auth failures visibly surface as errors.
-5. CI publishes only deterministic tests.
-6. manual `test:grok` proves real local CLI integration.
-7. one explicit smoke command proves Pi runtime integration.
+## Next beads
 
-Until #3 passes, it’s not shipped.
+- `pgb-011` — documentation and release criteria (current session)
+- `pgb-012` — final release acceptance audit, package/live config update, publish/release if explicitly requested
