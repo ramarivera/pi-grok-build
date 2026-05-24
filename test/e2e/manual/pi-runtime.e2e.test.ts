@@ -28,10 +28,10 @@ const piJsonArgs = [
   "--no-context-files",
 ] as const;
 
-function runPi(args: string[]): string {
+function runPi(args: string[], env: NodeJS.ProcessEnv = process.env): string {
   return execFileSync("pi", args, {
     cwd: repoRoot,
-    env: process.env,
+    env,
     encoding: "utf-8",
     timeout: 120_000,
     maxBuffer: 5_000_000,
@@ -60,5 +60,14 @@ describe("pi-grok-build real Pi runtime e2e", () => {
       events.some((event) => event.type === "message_end" || event.type === "turn_end"),
       "expected terminal message/turn event",
     );
+  });
+
+  it("prints visible text through selectable ACP mode", () => {
+    const stdout = runPi([...piArgs, "Respond exactly PI_GROK_OK and nothing else."], {
+      ...process.env,
+      PI_GROK_BUILD_MODE: "acp",
+    });
+
+    assert.ok(stdout.includes(PI_OK), stdout);
   });
 });

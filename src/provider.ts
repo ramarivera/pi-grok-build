@@ -12,10 +12,16 @@
 
 import { createInterface } from "node:readline";
 import {
+  type AssistantMessageEvent,
   AssistantMessageEventStream,
   type Model,
   type SimpleStreamOptions,
 } from "@earendil-works/pi-ai";
+import {
+  type GrokIntegrationMode,
+  resolveGrokIntegrationMode,
+  streamViaGrokAcp,
+} from "./acp-mode.ts";
 import { classifyGrokFailure, createDiagnostics, formatGrokFailure } from "./diagnostics.ts";
 import { createGrokEventBridge } from "./grok-bridge.ts";
 import {
@@ -64,6 +70,9 @@ type StreamViaGrokOptions = SimpleStreamOptions & {
   oauth?: GrokSpawnOptions["oauth"];
   promptFile?: GrokSpawnOptions["promptFile"];
   promptJson?: GrokSpawnOptions["promptJson"];
+
+  /** Override PI_GROK_BUILD_MODE for tests/direct SDK callers. */
+  integrationMode?: GrokIntegrationMode;
 };
 
 /** Pi content block shape (minimal). */
@@ -218,6 +227,25 @@ export function streamViaGrok(
       const conversation = buildGrokPrompt(context);
       const fullPrompt = systemPrompt + conversation;
 
+      const integrationMode = options?.integrationMode ?? resolveGrokIntegrationMode();
+      if (integrationMode === "acp") {
+        diagnostics.debug("delegating grok provider stream to acp mode", () => ({
+          modelId: model.id,
+          provider: model.provider,
+          messageCount: context.messages.length,
+          hasSystemPrompt: Boolean(context.systemPrompt),
+        }));
+        const acpStream = streamViaGrokAcp(model, fullPrompt, {
+          ...options,
+          ...(options?.reasoningEffort ? { reasoningEffort: options.reasoningEffort } : {}),
+        });
+        for await (const event of acpStream as AsyncIterable<AssistantMessageEvent>) {
+          stream.push(event);
+        }
+        stream.end();
+        return;
+      }
+
       // Spawn grok subprocess with all advanced options
       const spawnOpts = buildSpawnOptions(model, options);
       diagnostics.debug("starting grok provider stream", () => ({
@@ -225,6 +253,7 @@ export function streamViaGrok(
         provider: model.provider,
         messageCount: context.messages.length,
         hasSystemPrompt: Boolean(context.systemPrompt),
+        integrationMode,
         spawnOptions: {
           ...spawnOpts,
           promptJson: spawnOpts.promptJson ? "<redacted>" : undefined,

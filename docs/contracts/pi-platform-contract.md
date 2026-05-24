@@ -67,14 +67,14 @@ The extension should expose an integration mode switch for provider internals:
 | Mode | Backing command | Strength | Limitation |
 |---|---|---|---|
 | `jsonl` | `grok -p ... --output-format streaming-json` | Simple, easy to test, no persistent process. | One-shot; less efficient; session/persistence is CLI flag based. |
-| `acp` | `grok agent stdio` | Potentially persistent JSON-RPC/ACP session; may better match long-lived agent embedding. | More protocol work; must manage process lifecycle, initialization, auth, and failure recovery. |
+| `acp` | `grok agent --no-leader --always-approve --model <model> stdio` | JSON-RPC/ACP bridge with auth/session negotiation and token metadata. | Current implementation starts a fresh ACP process/session per provider call; persistence and replay hardening are future work. |
 
 Selection should be via env var or small config file, for example:
 
 - `PI_GROK_BUILD_MODE=jsonl|acp`
 - optional local config later if needed
 
-MVP should implement `jsonl` first. `acp` is a separate bead.
+`jsonl` remains the default. `acp` is implemented as a selectable per-call bridge via `grok agent stdio`; it is intentionally not persistent yet.
 
 ## Scope boundaries from the goal
 
@@ -89,7 +89,7 @@ MVP should implement `jsonl` first. `acp` is a separate bead.
 | Current behavior | Contract violation |
 |---|---|
 | Image/video/TTS/STT tools are registered from unproven xAI REST assumptions | Over-advertises unverified features. This is tracked by `pgb-010`; tools must either be grounded or removed. |
-| ACP mode is not implemented yet | JSONL mode is working first; selectable ACP integration is tracked by `pgb-005`. |
+| ACP mode is implemented only as a fresh process/session per provider call | Persistent ACP sessions, replay suppression, and richer tool/permission behavior remain future work. |
 | Biome/Effect conventions are not wired yet | Formatting/linting and Effect TS conventions are tracked by `pgb-007`. |
 
 ## Implementation guidance for future beads
@@ -99,7 +99,7 @@ MVP should implement `jsonl` first. `acp` is a separate bead.
 3. Register only provider + `grok_inspect` + `grok_models` initially.
 4. Add command diagnostics after provider works.
 5. Use Pi events/tool result contracts, not log strings, as test oracle.
-6. Add ACP only after JSONL mode passes text/json Pi e2e.
+6. Keep JSONL as default until ACP has enough real-world soak time to justify persistence work.
 
 ## Acceptance for pgb-002
 
