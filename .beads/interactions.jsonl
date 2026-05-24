@@ -1,0 +1,2 @@
+{"id":"int-dea34102","kind":"field_change","created_at":"2026-05-24T14:52:47.884931Z","actor":"Ramiro Rivera","issue_id":"pgb-003","extra":{"field":"status","new_value":"in_progress","old_value":"open"}}
+{"id":"int-5fb9d5e7","kind":"field_change","created_at":"2026-05-24T15:00:26.530963Z","actor":"Ramiro Rivera","issue_id":"pgb-003","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Completed context research over dpcode and OpenCode in docs/research/dpcode-opencode-grok-integration.md."}}
