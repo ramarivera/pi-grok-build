@@ -5,7 +5,7 @@ import {
   imagineVideo,
   textToSpeech,
   speechToText,
-} from "../src/xai-api.ts";
+} from "../../src/xai-api.ts";
 
 describe("xai-api client exports", () => {
   it("exports all four API functions", () => {

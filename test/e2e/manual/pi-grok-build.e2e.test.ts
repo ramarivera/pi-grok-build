@@ -13,7 +13,7 @@ import { describe, it } from "node:test";
 
 describe("pi-grok-build e2e — public API", () => {
   it("grok-parser exports all expected functions", async () => {
-    const mod = await import("../src/grok-parser.ts");
+    const mod = await import("../../../src/grok-parser.ts");
     assert.equal(typeof mod.parseGrokLine, "function");
     assert.equal(typeof mod.isStreamEvent, "function");
     assert.equal(typeof mod.isResultEvent, "function");
@@ -25,7 +25,7 @@ describe("pi-grok-build e2e — public API", () => {
   });
 
   it("grok-runner exports all expected functions", async () => {
-    const mod = await import("../src/grok-runner.ts");
+    const mod = await import("../../../src/grok-runner.ts");
     assert.equal(typeof mod.spawnGrok, "function");
     assert.equal(typeof mod.runGrokCommand, "function");
     assert.equal(typeof mod.runGrokInspect, "function");
@@ -47,7 +47,7 @@ describe("pi-grok-build e2e — public API", () => {
   });
 
   it("provider exports all expected functions", async () => {
-    const mod = await import("../src/provider.ts");
+    const mod = await import("../../../src/provider.ts");
     assert.equal(typeof mod.streamViaGrok, "function");
     assert.equal(typeof mod.buildGrokPrompt, "function");
     assert.equal(typeof mod.contextHasImages, "function");
@@ -55,7 +55,7 @@ describe("pi-grok-build e2e — public API", () => {
   });
 
   it("xai-api exports all expected functions", async () => {
-    const mod = await import("../src/xai-api.ts");
+    const mod = await import("../../../src/xai-api.ts");
     assert.equal(typeof mod.imagineImage, "function");
     assert.equal(typeof mod.imagineVideo, "function");
     assert.equal(typeof mod.textToSpeech, "function");
@@ -63,7 +63,7 @@ describe("pi-grok-build e2e — public API", () => {
   });
 
   it("types module exports expected type interfaces (loads cleanly)", async () => {
-    const mod = await import("../src/types.ts");
+    const mod = await import("../../../src/types.ts");
     assert.ok(mod);
   });
 
@@ -74,14 +74,14 @@ describe("pi-grok-build e2e — public API", () => {
 
 describe("pi-grok-build e2e — real grok CLI integration", () => {
   it("grok --version returns a version string", async () => {
-    const { runGrokCommand } = await import("../src/grok-runner.ts");
+    const { runGrokCommand } = await import("../../../src/grok-runner.ts");
     const result = runGrokCommand(["--version"]);
     assert.equal(result.ok, true);
     assert.ok(result.stdout.includes("grok"));
   });
 
   it("grok models returns a non-empty list when authed", async () => {
-    const { runGrokModels, parseGrokModelsOutput } = await import("../src/grok-runner.ts");
+    const { runGrokModels, parseGrokModelsOutput } = await import("../../../src/grok-runner.ts");
     const result = runGrokModels();
     if (result.ok) {
       const models = parseGrokModelsOutput(result.stdout);
@@ -94,7 +94,7 @@ describe("pi-grok-build e2e — real grok CLI integration", () => {
   });
 
   it("grok inspect returns something about this directory", async () => {
-    const { runGrokInspect } = await import("../src/grok-runner.ts");
+    const { runGrokInspect } = await import("../../../src/grok-runner.ts");
     const result = runGrokInspect({ cwd: process.cwd() });
     // inspect may fail on unauthed versions, but output should exist either way
     assert.ok(
@@ -105,9 +105,9 @@ describe("pi-grok-build e2e — real grok CLI integration", () => {
 
   it("spawns grok headless with streaming-json and receives at least one line", async () => {
     const { spawnGrok, registerProcess, forceKillProcess, captureStderr } = await import(
-      "../src/grok-runner.ts"
+      "../../../src/grok-runner.ts"
     );
-    const { parseGrokLine } = await import("../src/grok-parser.ts");
+    const { parseGrokLine } = await import("../../../src/grok-parser.ts");
 
     const proc = spawnGrok("Say 'hello' and nothing else", {
       modelId: "grok-3",
@@ -158,14 +158,14 @@ describe("pi-grok-build e2e — real grok CLI integration", () => {
   });
 
   it("grok headless respects --no-plan and --max-turns flags via buildGrokArgs", async () => {
-    const { buildGrokArgs } = await import("../src/grok-runner.ts");
+    const { buildGrokArgs } = await import("../../../src/grok-runner.ts");
     const args = buildGrokArgs("test", { noPlan: true, maxTurns: 1 });
     assert.ok(args.includes("--no-plan"));
     assert.ok(args.includes("--max-turns"));
   });
 
   it("validates that --continue flag is present in args builder", async () => {
-    const { buildGrokArgs } = await import("../src/grok-runner.ts");
+    const { buildGrokArgs } = await import("../../../src/grok-runner.ts");
     const args = buildGrokArgs("test", { continueSession: true });
     assert.ok(args.includes("--continue"));
   });
@@ -177,7 +177,7 @@ describe("pi-grok-build e2e — .pi shim loading", () => {
     // In a real Pi session the DefaultResourceLoader handles this. We verify the file
     // is structurally sound by parsing it as text if dynamic import fails.
     try {
-      const mod = await import("../.pi/extensions/pi-grok-build/index.ts");
+      const mod = await import("../../../.pi/extensions/pi-grok-build/index.ts");
       assert.ok(mod);
       assert.equal(typeof mod.default, "function");
     } catch (err: any) {
@@ -201,7 +201,7 @@ describe("pi-grok-build e2e — .pi shim loading", () => {
 
 describe("pi-grok-build e2e — provider stream integration", () => {
   it("buildSpawnOptions maps all advanced headless flags from Pi options", async () => {
-    const { buildSpawnOptions } = await import("../src/provider.ts");
+    const { buildSpawnOptions } = await import("../../../src/provider.ts");
     const model = { id: "grok-build", provider: "xai" } as any;
     const opts = buildSpawnOptions(model, {
       effort: "xhigh",
@@ -220,14 +220,14 @@ describe("pi-grok-build e2e — provider stream integration", () => {
   });
 
   it("disables Grok subagents by default for Pi provider calls", async () => {
-    const { buildSpawnOptions } = await import("../src/provider.ts");
+    const { buildSpawnOptions } = await import("../../../src/provider.ts");
     const model = { id: "grok-build", provider: "xai" } as any;
     const opts = buildSpawnOptions(model, {});
     assert.equal(opts.noSubagents, true);
   });
 
   it("contextHasImages drives vision model selection", async () => {
-    const { contextHasImages } = await import("../src/provider.ts");
+    const { contextHasImages } = await import("../../../src/provider.ts");
     const visionContext = {
       messages: [
         {
@@ -243,7 +243,7 @@ describe("pi-grok-build e2e — provider stream integration", () => {
   });
 
   it("buildGrokPrompt includes image placeholders for vision", async () => {
-    const { buildGrokPrompt } = await import("../src/provider.ts");
+    const { buildGrokPrompt } = await import("../../../src/provider.ts");
     const prompt = buildGrokPrompt({
       messages: [
         {
@@ -262,7 +262,7 @@ describe("pi-grok-build e2e — provider stream integration", () => {
 
 describe("pi-grok-build e2e — extension registration mock", () => {
   it("registers provider, command, and 5 tools with a mock ExtensionAPI", async () => {
-    const { createGrokBuildExtension } = await import("../src/extension.ts");
+    const { createGrokBuildExtension } = await import("../../../src/extension.ts");
 
     const registered = {
       providers: [] as string[],
@@ -299,7 +299,7 @@ describe("pi-grok-build e2e — extension registration mock", () => {
   });
 
   it("grok_inspect tool returns version and authed fields", async () => {
-    const { createGrokBuildExtension } = await import("../src/extension.ts");
+    const { createGrokBuildExtension } = await import("../../../src/extension.ts");
 
     let toolResult: unknown;
     const mockApi = {
@@ -326,7 +326,7 @@ describe("pi-grok-build e2e — extension registration mock", () => {
   });
 
   it("grok_run tool forwards args to runGrokCommand", async () => {
-    const { createGrokBuildExtension } = await import("../src/extension.ts");
+    const { createGrokBuildExtension } = await import("../../../src/extension.ts");
 
     let capturedArgs: string[] | undefined;
     let capturedCwd: string | undefined;
@@ -356,8 +356,8 @@ describe("pi-grok-build e2e — extension registration mock", () => {
   });
 
   it("grok_models tool parses real CLI output", async () => {
-    const { createGrokBuildExtension } = await import("../src/extension.ts");
-    const { runGrokModels, parseGrokModelsOutput } = await import("../src/grok-runner.ts");
+    const { createGrokBuildExtension } = await import("../../../src/extension.ts");
+    const { runGrokModels, parseGrokModelsOutput } = await import("../../../src/grok-runner.ts");
 
     const result = runGrokModels();
     const models = result.ok ? parseGrokModelsOutput(result.stdout) : [];

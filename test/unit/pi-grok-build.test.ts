@@ -8,7 +8,7 @@ import {
   isStreamEvent,
   isResultEvent,
   isSystemEvent,
-} from "../src/grok-parser.ts";
+} from "../../src/grok-parser.ts";
 
 describe("GrokBuildOptions contract", () => {
   it("accepts commandName and toolNamePrefix", () => {

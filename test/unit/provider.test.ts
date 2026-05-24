@@ -4,7 +4,7 @@ import {
   buildGrokPrompt,
   contextHasImages,
   buildSpawnOptions,
-} from "../src/provider.ts";
+} from "../../src/provider.ts";
 
 describe("buildGrokPrompt", () => {
   it("builds prompt with user messages", () => {

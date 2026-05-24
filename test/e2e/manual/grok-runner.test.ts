@@ -12,8 +12,8 @@ import {
   runGrokTrace,
   parseGrokModelsOutput,
   detectGrokBinary,
-} from "../src/grok-runner.ts";
-import { isEndEvent, isErrorEvent, isTextEvent, parseGrokLine } from "../src/grok-parser.ts";
+} from "../../../src/grok-runner.ts";
+import { isEndEvent, isErrorEvent, isTextEvent, parseGrokLine } from "../../../src/grok-parser.ts";
 
 describe("buildGrokArgs", () => {
   it("builds minimal args", () => {

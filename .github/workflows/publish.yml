@@ -31,11 +31,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run CI-safe tests
+      - name: Run CI-safe checks
         run: npm run test:ci
-
-      - name: Run typecheck
-        run: npm run typecheck
 
       - name: Resolve publish target
         id: package
