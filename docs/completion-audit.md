@@ -57,8 +57,8 @@ Date: 2026-05-24
 | Grok inspect support | `grok_inspect` / `grok_models` tools; e2e/tool tests | Done |
 | JSONL + ACP selectable mode | `PI_GROK_BUILD_MODE=jsonl|acp`, alias `PI_GROK_BUILD_INTEGRATION_MODE`; `docs/integration-modes.md`; ACP e2e smoke | Done |
 | Package docs included | `package.json.files` includes `docs`; `npm pack --dry-run` included docs | Done |
-| Published package contains current commits | `npm view @ramarivera/pi-grok-build version` = `0.1.1`; local package version = `0.1.1`, but local branch has 14 commits ahead of origin after 0.1.1-era fixes | Not done |
-| Live Pi settings use current package | `~/.pi/agent/settings.json` and toolbox `home/.chezmoidata/pi-agent.yaml` still point at `npm:@ramarivera/pi-grok-build@0.1.1`; current local commits are not published under a new immutable npm version | Not done |
+| Published package contains current commits | `npm view @ramarivera/pi-grok-build version` = `0.1.1`; local package version prepared as `0.1.2`, but that version is not pushed/published yet | Not done |
+| Live Pi settings use current package | `~/.pi/agent/settings.json` and toolbox `home/.chezmoidata/pi-agent.yaml` still point at `npm:@ramarivera/pi-grok-build@0.1.1`; they should move to `0.1.2` only after publish succeeds | Not done |
 | Push/release | `git status` shows branch ahead of origin; no push requested in this goal continuation | Blocked by no explicit push/publish approval |
 | Clean worktree | `git status --short --branch` before this audit was clean; this audit file is current WIP until committed | Pending this checkpoint |
 
@@ -109,20 +109,20 @@ git rev-parse HEAD
 Result:
 
 - npm published version: `0.1.1`
-- local version: `0.1.1`
-- local HEAD: `1d8386bfa978968f98391cf95a0b142b66ddadaa`
+- local version prepared for next release: `0.1.2`
+- local HEAD at audit creation: `1d8386bfa978968f98391cf95a0b142b66ddadaa`
 
 ## Gaps / blockers before marking the goal complete
 
-1. **Current source is not published.** The package is still version `0.1.1`, and npm already has `0.1.1`. A release needs a new version.
+1. **Current source is not published.** The local package has been bumped to `0.1.2`, but npm still has `0.1.1` until the branch is pushed and the publish workflow succeeds.
 2. **Branch is ahead of origin.** The current working source is local-only until pushed.
-3. **Live Pi settings point at `0.1.1`.** They cannot point at the new source until a new package version is published or an explicit local/git source is chosen.
+3. **Live Pi settings point at `0.1.1`.** They cannot safely point at `0.1.2` until that package version is published or an explicit local/git source is chosen.
 4. **Live media generation is not proven.** The media surface is honest and gated, but real xAI generation needs `XAI_API_KEY` or `GROK_CODE_XAI_API_KEY`.
 5. **Interactive TUI is not manually smoked in this audit.** Non-interactive text/json/rpc and ACP integration are proven; interactive relies on the same provider registry path but still lacks a recorded manual smoke.
 6. **Push/publish needs explicit approval.** The standing instruction says do not push unless explicitly requested; npm publish/release is a shipping action.
 
 ## Current conclusion
 
-The implementation is substantially complete and locally verified, including real Pi `-p`, JSON, RPC, and Grok ACP integration evidence. The overall goal is **not complete yet** because the verified source has not been pushed/published as a new package version and live Pi settings still reference the old immutable `0.1.1` package.
+The implementation is substantially complete and locally verified, including real Pi `-p`, JSON, RPC, and Grok ACP integration evidence. The overall goal is **not complete yet** because the verified source has not been pushed/published as the prepared `0.1.2` package version and live Pi settings still reference the old immutable `0.1.1` package.
 
-Next productive action after approval: bump package version, run the release checklist, commit the version bump, push, let trusted publishing publish, update toolbox/live Pi package to the new version, run post-install Pi smoke, close `pgb-012`, and only then mark the persisted goal complete.
+Next productive action after approval: push the prepared `0.1.2` release commit, let trusted publishing publish, update toolbox/live Pi package to the new version, run post-install Pi smoke, close `pgb-012`, and only then mark the persisted goal complete.

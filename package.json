@@ -1,6 +1,6 @@
 {
   "name": "@ramarivera/pi-grok-build",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Pi extension providing Grok Build / Grok CLI integration.",
   "license": "MIT",
   "type": "module",
