@@ -21,6 +21,7 @@ The repo is intentionally not considered final-release complete until the releas
 - The provider maps visible text and thinking into Pi assistant stream events.
 - Real Pi text print mode has produced `PI_GROK_OK` through `pi -p`.
 - Real Pi JSON print mode has emitted parseable JSON events containing `PI_GROK_OK`.
+- Real Pi RPC mode has emitted JSONL events containing `PI_GROK_OK`.
 - Selectable ACP mode has produced visible `PI_GROK_OK` through Pi print mode.
 - Missing CLI, invalid model, auth/subprocess/timeout/parse failures are categorized and surfaced through Pi stream `error` events.
 - Unit tests, property tests, Biome checks, and manual Grok/Pi e2e tests exist and have passed during the rebuild sessions.
@@ -69,8 +70,8 @@ Not shipped:
 
 - Branch is local-only until explicitly pushed/released.
 - Final release bead still needs a fresh completion audit and release verification.
-- RPC mode is expected to use the same provider registry path, but explicit RPC acceptance evidence is still a final release item.
-- Interactive mode should be manually smoked before final release if the release claim includes interactive TUI behavior.
+- RPC mode now has automated e2e evidence through `test/e2e/manual/pi-runtime.e2e.test.ts`.
+- Interactive mode should still be manually smoked before final release if the release claim includes interactive TUI behavior.
 - ACP mode is functional but not persistent; each provider call starts a fresh ACP process/session.
 - xAI media tools are grounded and API-key gated, but live media generation has not been run in this environment because no xAI API key is configured.
 - `bd ready` still warns `beads.role not configured`; this does not block extension tests but should be cleaned up eventually with `git config beads.role maintainer` or `contributor`.

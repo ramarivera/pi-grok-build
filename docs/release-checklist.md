@@ -64,6 +64,7 @@ This must pass:
 - real Grok CLI command tests
 - real `pi -p` provider output containing `PI_GROK_OK`
 - real `pi --mode json -p` JSON events containing `PI_GROK_OK`
+- real `pi --mode rpc` JSONL events containing `PI_GROK_OK`
 - selectable ACP mode provider output containing `PI_GROK_OK`
 
 ## 5. Direct smoke commands
@@ -90,6 +91,8 @@ pi --no-extensions \
   -p --no-session --no-context-files \
   "Respond exactly PI_GROK_OK and nothing else."
 ```
+
+RPC mode is covered by `test/e2e/manual/pi-runtime.e2e.test.ts`, which spawns `pi --mode rpc`, sends a JSONL `prompt` command on stdin, and asserts response events contain `PI_GROK_OK`.
 
 ACP mode:
 

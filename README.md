@@ -10,7 +10,7 @@ Pi coding-agent extension providing a Grok Build provider backed by the local `g
   - interactive Pi uses the registered provider
   - text print: `pi -p`
   - JSON print: `pi --mode json -p`
-  - RPC mode should use the same provider registry path; final release still needs explicit RPC acceptance evidence
+  - RPC: `pi --mode rpc` JSONL stdin/stdout events
 - Integration modes:
   - JSONL: `grok -p ... --output-format streaming-json`
   - ACP: `grok agent ... stdio`

@@ -79,9 +79,11 @@ Manual Grok e2e tests live under `test/e2e/manual/`. They require:
 - local Grok CLI auth already completed
 - `pi` available on `PATH`
 
-The real Pi runtime test asserts both:
+The real Pi runtime test asserts:
 
 - `pi -p` with `pi-grok-build/grok-build` visibly outputs `PI_GROK_OK`
 - `pi --mode json -p` emits parseable JSON events containing `PI_GROK_OK`
+- `pi --mode rpc` emits JSONL events containing `PI_GROK_OK`
+- `PI_GROK_BUILD_MODE=acp` still produces visible print-mode output through the selectable ACP integration path
 
 Tests assert observable behavior and structured output. Logs are allowed for diagnosis, but no test should depend on log text as its primary expectation.
