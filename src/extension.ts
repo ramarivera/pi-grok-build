@@ -14,7 +14,6 @@ import type {
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import {
-  validateGrokPresence,
   validateGrokAuth,
   getGrokVersion,
   runGrokInspect,
@@ -27,6 +26,7 @@ import {
   parseGrokModelsOutput,
 } from "./grok-runner.ts";
 import type { GrokRunResult } from "./types.ts";
+import { createDiagnostics, formatGrokFailure, classifyGrokFailure } from "./diagnostics.ts";
 import { streamViaGrok } from "./provider.ts";
 import { imagineImage, imagineVideo, textToSpeech, speechToText } from "./xai-api.ts";
 
@@ -34,6 +34,7 @@ import { imagineImage, imagineVideo, textToSpeech, speechToText } from "./xai-ap
 process.on("exit", killAllProcesses);
 
 const PROVIDER_ID = "pi-grok-build";
+const diagnostics = createDiagnostics("extension");
 
 const EMPTY_SCHEMA = Type.Object({}, { additionalProperties: false });
 
@@ -108,14 +109,9 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
   return {
     register(pi: ExtensionAPI): void {
       try {
-        // Startup validation
-        validateGrokPresence(); // throws if not on PATH
-
         const authed = validateGrokAuth();
         if (!authed) {
-          console.warn(
-            "[pi-grok-build] Grok CLI is not authenticated. Run 'grok' to authenticate via browser.",
-          );
+          diagnostics.warn("grok cli is unavailable or unauthenticated at extension registration");
         }
 
         // --- Provider Registration ---
@@ -124,6 +120,12 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
         // Grok Build rejects, which makes the UI selectable but dead at submit time.
         const cliModelResult = runGrokModels();
         const cliModels = cliModelResult.ok ? parseGrokModelsOutput(cliModelResult.stdout) : [];
+        if (!cliModelResult.ok) {
+          diagnostics.warn("falling back to default grok-build model list", () => ({
+            stderr: cliModelResult.stderr,
+            exitCode: cliModelResult.exitCode,
+          }));
+        }
         const models =
           cliModels.length > 0
             ? cliModels.map((m) => ({
@@ -174,9 +176,12 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
             if (!action || action === "status") {
               const version = getGrokVersion();
               const isAuthed = validateGrokAuth();
+              const status = version === "unknown"
+                ? "Grok CLI missing or unavailable on PATH"
+                : `Grok Build CLI v${version}`;
               ctx.ui.notify(
-                `Grok Build CLI v${version} | Auth: ${isAuthed ? "✅" : "❌"} | Provider: ${PROVIDER_ID} (${models.length} models)`,
-                "info",
+                `${status} | Auth: ${isAuthed ? "✅" : "❌"} | Provider: ${PROVIDER_ID} (${models.length} models)`,
+                version === "unknown" ? "error" : "info",
               );
             } else if (action === "inspect") {
               const result = runGrokInspect({ cwd: ctx.cwd });
@@ -534,7 +539,11 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
         pi.registerTool(ttsTool);
         pi.registerTool(sttTool);
       } catch (err) {
-        console.error(`[pi-grok-build] Failed to register extension:`, err);
+        const message = err instanceof Error ? err.message : String(err);
+        diagnostics.error("failed to register extension", () => ({
+          diagnostic: classifyGrokFailure({ message }),
+        }));
+        throw new Error(formatGrokFailure(classifyGrokFailure({ message })), { cause: err });
       }
     },
   };

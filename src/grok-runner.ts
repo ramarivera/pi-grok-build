@@ -10,8 +10,15 @@ import spawn from "cross-spawn";
 import { execFileSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import type { GrokRunResult, GrokSpawnOptions, GrokModelDescriptor } from "./types.ts";
+import {
+  GrokCliError,
+  classifyGrokFailure,
+  createDiagnostics,
+  redactGrokArgs,
+} from "./diagnostics.ts";
 
 const GROK_BINARY = "grok";
+const diagnostics = createDiagnostics("grok-runner");
 
 /** Detect the installed grok binary on PATH only. */
 export function detectGrokBinary(): string {
@@ -20,10 +27,12 @@ export function detectGrokBinary(): string {
     return GROK_BINARY;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    throw new Error(
-      "Grok Build CLI not found on PATH. Install/authenticate Grok CLI and make `grok` available in the Pi runtime PATH. " +
-        `Original error: ${message}`,
-    );
+    const diagnostic = classifyGrokFailure({ message });
+    diagnostics.debug("grok binary detection failed", () => ({ diagnostic }));
+    throw new GrokCliError({
+      ...diagnostic,
+      message: `${diagnostic.message} Original error: ${message}`,
+    }, { cause: err });
   }
 }
 
@@ -174,6 +183,13 @@ export function spawnGrok(
   const binary = detectGrokBinary();
   const args = buildGrokArgs(prompt, options);
 
+  diagnostics.debug("spawning grok cli", () => ({
+    binary,
+    args: redactGrokArgs(args),
+    cwd: options.cwd ?? process.cwd(),
+    modelId: options.modelId,
+  }));
+
   const proc = spawn(binary, args, {
     stdio: ["pipe", "pipe", "pipe"],
     cwd: options.cwd ?? process.cwd(),
@@ -245,10 +261,15 @@ export function runGrokCommand(
   args: string[],
   options: { cwd?: string; timeout?: number } = {},
 ): GrokRunResult {
-  const binary = detectGrokBinary();
   const maxOutput = 500_000; // 500KB limit
 
   try {
+    const binary = detectGrokBinary();
+    diagnostics.debug("running grok command", () => ({
+      args: redactGrokArgs(args),
+      cwd: options.cwd ?? process.cwd(),
+      timeout: options.timeout ?? 120_000,
+    }));
     const stdout = execFileSync(binary, args, {
       cwd: options.cwd ?? process.cwd(),
       timeout: options.timeout ?? 120_000,
@@ -280,11 +301,22 @@ export function runGrokCommand(
     const stderr =
       execErr.stderr?.toString() ?? execErr.message ?? "Unknown error";
 
+    const diagnostic = classifyGrokFailure({
+      message: execErr.message,
+      stderr,
+      stdout,
+      exitCode: execErr.status ?? 1,
+    });
+    diagnostics.warn("grok command failed", () => ({
+      args: redactGrokArgs(args),
+      diagnostic: { ...diagnostic, stdout: undefined, stderr: undefined },
+    }));
+
     return {
       ok: false,
       exitCode: execErr.status ?? 1,
       stdout: stdout.slice(0, maxOutput),
-      stderr: stderr.slice(0, maxOutput),
+      stderr: diagnostic.message.slice(0, maxOutput),
       truncated: stdout.length > maxOutput || stderr.length > maxOutput,
     };
   }

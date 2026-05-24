@@ -30,6 +30,14 @@ export {
 } from "./grok-runner.ts";
 export { createGrokEventBridge } from "./grok-bridge.ts";
 export {
+  GrokCliError,
+  classifyGrokFailure,
+  createDiagnostics,
+  formatGrokFailure,
+  redactGrokArgs,
+} from "./diagnostics.ts";
+export type { GrokDiagnosticLevel, GrokFailureDiagnostic, GrokFailureKind } from "./diagnostics.ts";
+export {
   parseGrokLine,
   isStreamEvent,
   isResultEvent,

@@ -30,9 +30,11 @@ import {
 } from "./grok-parser.ts";
 import { createGrokEventBridge } from "./grok-bridge.ts";
 import type { GrokNdjsonMessage, GrokSpawnOptions } from "./types.ts";
+import { classifyGrokFailure, createDiagnostics, formatGrokFailure } from "./diagnostics.ts";
 
 /** Inactivity timeout: kill subprocess if no stdout for 180 seconds. */
 const INACTIVITY_TIMEOUT_MS = 180_000;
+const diagnostics = createDiagnostics("provider");
 
 /** Extended stream options with optional session info and advanced headless flags. */
 type StreamViaGrokOptions = SimpleStreamOptions & {
@@ -220,6 +222,17 @@ export function streamViaGrok(
 
       // Spawn grok subprocess with all advanced options
       const spawnOpts = buildSpawnOptions(model, options);
+      diagnostics.debug("starting grok provider stream", () => ({
+        modelId: model.id,
+        provider: model.provider,
+        messageCount: context.messages.length,
+        hasSystemPrompt: Boolean(context.systemPrompt),
+        spawnOptions: {
+          ...spawnOpts,
+          promptJson: spawnOpts.promptJson ? "<redacted>" : undefined,
+          systemPromptOverride: spawnOpts.systemPromptOverride ? "<redacted>" : undefined,
+        },
+      }));
       proc = spawnGrok(fullPrompt, spawnOpts);
       registerProcess(proc);
 
@@ -290,15 +303,21 @@ export function streamViaGrok(
 
       function endStreamWithError(errMsg: string): void {
         if (streamEnded || broken) return;
+        const diagnostic = classifyGrokFailure({ message: errMsg });
+        const userMessage = formatGrokFailure(diagnostic);
+        diagnostics.warn("ending grok stream with error", () => ({
+          diagnostic: { ...diagnostic, stdout: undefined, stderr: undefined },
+          modelId: model.id,
+        }));
         streamEnded = true;
         finishOpenBlocks();
         const errorMessage = {
           ...output,
           content: output.content?.length
             ? output.content
-            : [{ type: "text" as const, text: `Grok CLI error: ${errMsg}` }],
+            : [{ type: "text" as const, text: userMessage }],
           stopReason: "error" as const,
-          errorMessage: errMsg,
+          errorMessage: userMessage,
         };
         stream.push({
           type: "error",
@@ -365,7 +384,10 @@ export function streamViaGrok(
         resetInactivityTimer();
 
         const msg = parseGrokLine(line);
-        if (!msg) return;
+        if (!msg) {
+          diagnostics.trace("ignored non-json grok stream line", () => ({ lineLength: line.length }));
+          return;
+        }
 
         if (isStreamEvent(msg)) {
           started = true;
@@ -430,12 +452,18 @@ export function streamViaGrok(
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
+      const diagnostic = classifyGrokFailure({ message });
+      const userMessage = formatGrokFailure(diagnostic);
+      diagnostics.error("grok provider stream failed before subprocess completion", () => ({
+        diagnostic: { ...diagnostic, stdout: undefined, stderr: undefined },
+        modelId: model.id,
+      }));
       stream.push({
         type: "error",
         reason: "error",
         error: {
           role: "assistant",
-          content: [{ type: "text" as const, text: `Grok CLI error: ${message}` }],
+          content: [{ type: "text" as const, text: userMessage }],
           api: "pi-grok-build",
           provider: model.provider,
           model: model.id,
@@ -448,7 +476,7 @@ export function streamViaGrok(
             cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
           },
           stopReason: "error",
-          errorMessage: message,
+          errorMessage: userMessage,
           timestamp: Date.now(),
         },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

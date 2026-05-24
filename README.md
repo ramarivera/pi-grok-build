@@ -16,6 +16,12 @@ Then add to your Pi agent settings:
 }
 ```
 
+## Diagnostics
+
+Provider failures are surfaced as Pi stream `error` events. Structured pino diagnostics are opt-in with `PI_GROK_BUILD_LOG_LEVEL=silent|error|warn|info|debug|trace` or `PI_GROK_BUILD_DEBUG=1`; prompt-bearing Grok argv fields are redacted before logging.
+
+See [`docs/diagnostics.md`](docs/diagnostics.md) for the full behavior.
+
 ## Tests
 
 CI runs only deterministic tests that do not require a locally installed or authenticated Grok CLI:
