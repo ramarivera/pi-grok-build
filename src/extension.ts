@@ -7,7 +7,7 @@
  * 3. Command — /grok for CLI status, inspection, models, sessions, and more
  */
 
-import { Type, getModels } from "@earendil-works/pi-ai";
+import { Type } from "@earendil-works/pi-ai";
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
@@ -25,15 +25,21 @@ import {
   killAllProcesses,
   parseGrokModelsOutput,
 } from "./grok-runner.ts";
-import type { GrokRunResult } from "./types.ts";
+import type { GrokModelDescriptor, GrokRunResult } from "./types.ts";
 import { createDiagnostics, formatGrokFailure, classifyGrokFailure } from "./diagnostics.ts";
 import { streamViaGrok } from "./provider.ts";
+import {
+  GROK_BUILD_PROVIDER_ID,
+  GROK_JSONL_INTEGRATION_MODE,
+  buildGrokProviderModels,
+  fallbackGrokBuildModel,
+} from "./model-metadata.ts";
 import { imagineImage, imagineVideo, textToSpeech, speechToText } from "./xai-api.ts";
 
 // Kill all active Grok subprocesses on exit to prevent orphans
 process.on("exit", killAllProcesses);
 
-const PROVIDER_ID = "pi-grok-build";
+const PROVIDER_ID = GROK_BUILD_PROVIDER_ID;
 const diagnostics = createDiagnostics("extension");
 
 const EMPTY_SCHEMA = Type.Object({}, { additionalProperties: false });
@@ -120,39 +126,16 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
         // Grok Build rejects, which makes the UI selectable but dead at submit time.
         const cliModelResult = runGrokModels();
         const cliModels = cliModelResult.ok ? parseGrokModelsOutput(cliModelResult.stdout) : [];
+        const modelSource = cliModels.length > 0 ? "grok models" : "fallback";
         if (!cliModelResult.ok) {
           diagnostics.warn("falling back to default grok-build model list", () => ({
             stderr: cliModelResult.stderr,
             exitCode: cliModelResult.exitCode,
           }));
         }
-        const models =
-          cliModels.length > 0
-            ? cliModels.map((m) => ({
-                id: m.id,
-                name: m.name,
-                reasoning: true,
-                input: ["text" as const, "image" as const],
-                cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-                contextWindow: 1_000_000,
-                maxTokens: 128_000,
-              }))
-            : [
-                {
-                  id: "grok-build",
-                  name: "Grok Build",
-                  reasoning: true as const,
-                  input: ["text" as const, "image" as const],
-                  contextWindow: 1_000_000,
-                  maxTokens: 128_000,
-                  cost: {
-                    input: 0,
-                    output: 0,
-                    cacheRead: 0,
-                    cacheWrite: 0,
-                  },
-                },
-              ];
+        const models = cliModels.length > 0
+          ? buildGrokProviderModels(cliModels)
+          : [fallbackGrokBuildModel()];
 
         pi.registerProvider(PROVIDER_ID, {
           baseUrl: "pi-grok-build",
@@ -245,7 +228,15 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
 
         const inspectTool: ToolDefinition<
           typeof EMPTY_SCHEMA,
-          { version: string; authed: boolean; models: Array<{ id: string; name: string }> },
+          {
+            version: string;
+            authed: boolean;
+            providerId: string;
+            integrationMode: string;
+            modelSource: string;
+            models: Array<{ id: string; name: string }>;
+            inspect: GrokRunResult;
+          },
           unknown
         > = {
           name: `${toolNamePrefix}grok_inspect`,
@@ -256,22 +247,24 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
           async execute() {
             const version = getGrokVersion();
             const authed = validateGrokAuth();
+            const inspect = runGrokInspect();
+            const details = {
+              version,
+              authed,
+              providerId: PROVIDER_ID,
+              integrationMode: GROK_JSONL_INTEGRATION_MODE,
+              modelSource,
+              models: models.map((m) => ({ id: m.id, name: m.name })),
+              inspect,
+            };
             return {
               content: [
                 {
                   type: "text",
-                  text: JSON.stringify(
-                    {
-                      version,
-                      authed,
-                      models: models.map((m) => ({ id: m.id, name: m.name })),
-                    },
-                    null,
-                    2,
-                  ),
+                  text: JSON.stringify(details, null, 2),
                 },
               ],
-              details: { version, authed, models },
+              details,
             };
           },
         };
@@ -324,18 +317,24 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
           async execute() {
             const result = runGrokModels();
             const discovered = result.ok ? parseGrokModelsOutput(result.stdout) : [];
+            const providerModels = buildGrokProviderModels(discovered);
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    { models: discovered, raw: result.stdout.slice(0, 5000) },
+                    {
+                      models: discovered,
+                      providerModels,
+                      source: "grok models",
+                      raw: result.stdout.slice(0, 5000),
+                    },
                     null,
                     2,
                   ),
                 },
               ],
-              details: { models: discovered },
+              details: { models: discovered, providerModels, source: "grok models" },
             };
           },
         };

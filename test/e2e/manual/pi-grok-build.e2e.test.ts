@@ -226,7 +226,7 @@ describe("pi-grok-build e2e — provider stream integration", () => {
     assert.equal(opts.noSubagents, true);
   });
 
-  it("contextHasImages drives vision model selection", async () => {
+  it("contextHasImages detects image blocks without provider metadata overclaiming image input", async () => {
     const { contextHasImages } = await import("../../../src/provider.ts");
     const visionContext = {
       messages: [
@@ -242,7 +242,7 @@ describe("pi-grok-build e2e — provider stream integration", () => {
     assert.equal(contextHasImages(visionContext), true);
   });
 
-  it("buildGrokPrompt includes image placeholders for vision", async () => {
+  it("buildGrokPrompt includes image placeholders in text prompts", async () => {
     const { buildGrokPrompt } = await import("../../../src/provider.ts");
     const prompt = buildGrokPrompt({
       messages: [

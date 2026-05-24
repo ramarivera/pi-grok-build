@@ -66,8 +66,9 @@ test("Pi SDK exposes pi-grok-build commands and tools through live runtime", asy
 	try {
 		await session.bindExtensions({});
 
+		const localGrokCommand = session.extensionRunner.getCommand("local-grok");
 		assert.ok(
-			session.extensionRunner.getCommand("local-grok"),
+			localGrokCommand,
 			"expected /local-grok command to be registered",
 		);
 
@@ -127,6 +128,22 @@ test("Pi SDK exposes pi-grok-build commands and tools through live runtime", asy
 		assert.ok(typeof details.authed === "boolean");
 
 		// Execute grok_models tool live
+		const notifications: Array<{ message: string; type?: string }> = [];
+		await localGrokCommand.handler("models", {
+			cwd: repoRoot,
+			ui: {
+				notify: (message: string, type?: string) => {
+					const entry: { message: string; type?: string } = { message };
+					if (type !== undefined) entry.type = type;
+					notifications.push(entry);
+				},
+			},
+		} as any);
+		assert.ok(
+			notifications.some((entry) => entry.message.includes("grok-build")),
+			"expected /local-grok models command to report CLI-discovered grok-build model",
+		);
+
 		const modelsTool = session.extensionRunner.getToolDefinition("local_grok_models");
 		assert.ok(modelsTool, "expected local_grok_models definition to be retrievable");
 		const modelsResult = await modelsTool.execute(
@@ -136,8 +153,25 @@ test("Pi SDK exposes pi-grok-build commands and tools through live runtime", asy
 			undefined,
 			session.createReplacedSessionContext() as ExtensionContext,
 		);
-		const modelsDetails = modelsResult.details as { models: Array<{ id: string; name: string }> };
+		const modelsDetails = modelsResult.details as {
+			models: Array<{ id: string; name: string }>;
+			providerModels: Array<{ id: string; name: string; reasoning: boolean; input: string[] }>;
+			source: string;
+		};
 		assert.ok(Array.isArray(modelsDetails.models));
+		assert.equal(modelsDetails.source, "grok models");
+		assert.deepEqual(
+			modelsDetails.providerModels.map((model) => model.id),
+			modelsDetails.models.map((model) => model.id),
+		);
+		assert.ok(
+			modelsDetails.providerModels.every((model) => model.reasoning === true),
+			"expected provider models to advertise reasoning support",
+		);
+		assert.ok(
+			modelsDetails.providerModels.every((model) => model.input.length === 1 && model.input[0] === "text"),
+			"expected provider models to only claim proven text input",
+		);
 	} finally {
 		session.dispose();
 	}

@@ -30,6 +30,15 @@ export {
 } from "./grok-runner.ts";
 export { createGrokEventBridge } from "./grok-bridge.ts";
 export {
+  GROK_BUILD_PROVIDER_ID,
+  GROK_JSONL_INTEGRATION_MODE,
+  GROK_PROVIDER_MODEL_DEFAULTS,
+  GROK_THINKING_LEVEL_MAP,
+  buildGrokProviderModel,
+  buildGrokProviderModels,
+  fallbackGrokBuildModel,
+} from "./model-metadata.ts";
+export {
   GrokCliError,
   classifyGrokFailure,
   createDiagnostics,

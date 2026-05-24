@@ -22,7 +22,7 @@ No separate Pi MCP mode or Pi ACP mode was found in the CLI mode type. ACP is re
 | Surface | Evidence | Required pi-grok-build behavior |
 |---|---|---|
 | Provider registration | `ExtensionAPI.registerProvider(name, config: ProviderConfig)` | Register `pi-grok-build` with honest Grok CLI models only. Use `streamSimple` for custom provider streaming. |
-| Model registration | `ProviderConfig.models?: ProviderModelConfig[]` | Populate from `grok models`, not xAI API catalog guesses. Include `reasoning`, `input`, `cost`, `contextWindow`, `maxTokens`. |
+| Model registration | `ProviderConfig.models?: ProviderModelConfig[]` | Populate from `grok models`, not xAI API catalog guesses. Include `reasoning`, `thinkingLevelMap`, `input`, `cost`, `contextWindow`, `maxTokens`. Claim only proven text input for the provider until real Grok CLI image input is implemented. |
 | Custom streaming | `ProviderConfig.streamSimple?: (model, context, options) => AssistantMessageEventStream` | Core provider must return a valid `AssistantMessageEventStream` for all Pi modes. |
 | Thinking support | `ProviderModelConfig.reasoning`, `thinkingLevelMap`, Pi `--thinking` / `setThinkingLevel` | Advertise reasoning only if Grok `thought` events are mapped to Pi thinking content/events. |
 | Cost tracking | Pi AI `AssistantMessage.usage` and `calculateCost(model, usage)` pattern | If Grok JSONL gives no usage, set usage to zero honestly. If ACP/JSON returns usage later, map into `input/output/cacheRead/cacheWrite` and run cost calculation. |
@@ -88,12 +88,9 @@ MVP should implement `jsonl` first. `acp` is a separate bead.
 
 | Current behavior | Contract violation |
 |---|---|
-| `detectGrokBinary` searches `~/.grok/bin` and download paths | Violates PATH-only requirement. |
-| Extension catches registration failures and only `console.error`s | Can make provider silently unavailable or noisy without Pi-native surfacing. |
-| Provider exposes many Grok flags including `bestOfN`, `agent`, `agents`, `worktree` | Includes out-of-scope or dangerous surfaces before MVP. |
-| `grok_run` uses shell string joining | Unsafe and not Pi-idiomatic. |
-| Image/video/TTS/STT tools are registered from unproven xAI REST assumptions | Over-advertises unverified features. |
-| Tests mostly assert registration/import shape | Do not prove Pi text/json/RPC runtime behavior. |
+| Image/video/TTS/STT tools are registered from unproven xAI REST assumptions | Over-advertises unverified features. This is tracked by `pgb-010`; tools must either be grounded or removed. |
+| ACP mode is not implemented yet | JSONL mode is working first; selectable ACP integration is tracked by `pgb-005`. |
+| Biome/Effect conventions are not wired yet | Formatting/linting and Effect TS conventions are tracked by `pgb-007`. |
 
 ## Implementation guidance for future beads
 
