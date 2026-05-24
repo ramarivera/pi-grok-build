@@ -18,13 +18,13 @@ The old extension code used ungrounded/stale model and endpoint assumptions, inc
 
 ## Shipped behavior
 
-The extension registers these tools only when an xAI API key is available via environment:
+The extension registers these tools when xAI API auth is available from either explicit environment keys or the local Grok CLI auth cache:
 
 - `grok_imagine_image`
 - `grok_imagine_video`
 - `grok_imagine_video_status`
 
-Accepted env vars:
+Accepted explicit env vars:
 
 ```bash
 XAI_API_KEY=...
@@ -33,19 +33,28 @@ GROK_CODE_XAI_API_KEY=...
 
 `XAI_API_KEY` wins when both are set.
 
-When no key is configured, the tools are not registered. This avoids advertising a fake media surface in normal Pi installations.
+Fallback auth source:
+
+- `~/.grok/auth.json`
+- first non-expired `https://auth.x.ai` entry
+- `key` field only
+- disabled when `PI_GROK_BUILD_DISABLE_GROK_AUTH_CACHE=1`
+
+The cached `refresh_token` is intentionally not used. It failed direct xAI API authentication in local probing, while the cached `key` access token successfully authenticated `GET https://api.x.ai/v1/models`. Token values must never be logged or surfaced.
+
+When no explicit key or valid cached Grok token is configured, the tools are not registered. This avoids advertising a fake media surface in normal Pi installations.
 
 ## Not shipped
 
 The extension intentionally does **not** register voice/TTS/STT tools. The previous `grok_tts` and `grok_stt` tools were removed because the active goal asked for image/video and the old endpoints were not grounded in current evidence.
 
-The extension also does **not** read private Grok CLI cached auth tokens from `~/.grok`. ACP initialize advertises a cached token for Grok CLI auth, but the xAI Imagine docs use platform API keys. Reusing the CLI cache for API calls is not currently proven or documented, so the extension does not do it.
+The extension reads only the Grok CLI cached access token needed for xAI REST auth fallback. It does **not** use the refresh token, mutate Grok auth files, or attempt undocumented refresh flows.
 
 ## Verification status
 
 Deterministic tests verify request construction, endpoint paths, default models, missing-key behavior, and registration gating.
 
-Live xAI media generation was not executed in this session because neither `XAI_API_KEY` nor `GROK_CODE_XAI_API_KEY` was present in the environment. A real generation smoke should be run before claiming media tools are fully production-proven on this machine.
+Live xAI media generation was not executed in this session. Explicit API keys were absent, but local probing confirmed `~/.grok/auth.json` contains an auth.x.ai cached `key` access token that successfully authenticates `GET https://api.x.ai/v1/models`. A real generation smoke should still be run before claiming media tools are fully production-proven on this machine because image/video endpoints can incur usage.
 
 Manual live smoke, intentionally opt-in because it can incur xAI API usage:
 

@@ -48,8 +48,8 @@ Date: 2026-05-24
 | Effect TS where useful | `effect` dependency; `detectGrokBinaryEffect()` models PATH detection errors | Done |
 | Pi platform integration surfaces | `docs/contracts/pi-platform-contract.md` maps provider/tool/error/logging/cost surfaces; provider usage reports zero/unknown where Grok lacks JSONL usage; ACP maps usage when returned | Done with honest limitations |
 | Context research over DP Code/OpenCode | `docs/research/dpcode-opencode-grok-integration.md`; Bead `pgb-003` closed | Done |
-| Image/video tools grounded | `docs/media-tools.md`, `src/xai-api.ts`, tests; old fake TTS/STT removed | Done for gated API surface |
-| Live media generation | `test/e2e/manual/xai-media.e2e.test.ts` exists but skips without `XAI_API_KEY`/`GROK_CODE_XAI_API_KEY` | Blocked by missing key |
+| Image/video tools grounded | `docs/media-tools.md`, `src/xai-api.ts`, tests; old fake TTS/STT removed; `~/.grok/auth.json` auth.x.ai `key` fallback implemented after `/v1/models` probe succeeded | Done for gated API surface |
+| Live media generation | `test/e2e/manual/xai-media.e2e.test.ts` exists; live generation still intentionally opt-in because it can incur xAI usage | Pending opt-in smoke |
 | Pi-idiomatic error reporting | Provider emits Pi assistant stream `error` events; `src/diagnostics.ts`; unit tests | Done |
 | PATH-only Grok detection | `detectGrokBinary()` calls `grok` on PATH only; no private fallback | Done |
 | Pino diagnostics if Pi lacks logger primitive | `src/diagnostics.ts`, `docs/diagnostics.md`; redaction tests; logs not test oracle | Done |
@@ -117,7 +117,7 @@ Result:
 1. **Current source is not published.** The local package has been bumped to `0.1.2`, but npm still has `0.1.1` until the branch is pushed and the publish workflow succeeds.
 2. **Branch is ahead of origin.** The current working source is local-only until pushed.
 3. **Live Pi settings point at `0.1.1`.** They cannot safely point at `0.1.2` until that package version is published or an explicit local/git source is chosen.
-4. **Live media generation is not proven.** The media surface is honest and gated, but real xAI generation needs `XAI_API_KEY` or `GROK_CODE_XAI_API_KEY`.
+4. **Live media generation is not proven.** The media surface is honest and gated; Grok cached access-token auth was proven against `/v1/models`, but real image/video generation remains opt-in because it can incur xAI usage.
 5. **Interactive TUI is not manually smoked in this audit.** Non-interactive text/json/rpc and ACP integration are proven; interactive relies on the same provider registry path but still lacks a recorded manual smoke.
 6. **Push/publish needs explicit approval.** The standing instruction says do not push unless explicitly requested; npm publish/release is a shipping action.
 

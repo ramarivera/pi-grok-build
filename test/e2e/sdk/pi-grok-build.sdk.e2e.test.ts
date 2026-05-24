@@ -9,6 +9,7 @@ import {
   type ExtensionContext,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
+import { getXaiApiKey } from "../../../src/xai-api.ts";
 
 const repoRoot = process.cwd();
 let agentDir: string;
@@ -93,20 +94,21 @@ test("Pi SDK exposes pi-grok-build commands and tools through live runtime", asy
       toolNames.includes("local_grok_memory"),
       "expected local_grok_memory tool to be registered",
     );
+    const hasXaiRestAuth = Boolean(getXaiApiKey());
     assert.equal(
       toolNames.includes("local_grok_imagine_image"),
-      Boolean(process.env.XAI_API_KEY || process.env.GROK_CODE_XAI_API_KEY),
-      "local_grok_imagine_image should only be registered when an xAI API key is configured",
+      hasXaiRestAuth,
+      "local_grok_imagine_image should only be registered when xAI REST auth is configured",
     );
     assert.equal(
       toolNames.includes("local_grok_imagine_video"),
-      Boolean(process.env.XAI_API_KEY || process.env.GROK_CODE_XAI_API_KEY),
-      "local_grok_imagine_video should only be registered when an xAI API key is configured",
+      hasXaiRestAuth,
+      "local_grok_imagine_video should only be registered when xAI REST auth is configured",
     );
     assert.equal(
       toolNames.includes("local_grok_imagine_video_status"),
-      Boolean(process.env.XAI_API_KEY || process.env.GROK_CODE_XAI_API_KEY),
-      "local_grok_imagine_video_status should only be registered when an xAI API key is configured",
+      hasXaiRestAuth,
+      "local_grok_imagine_video_status should only be registered when xAI REST auth is configured",
     );
     assert.equal(toolNames.includes("local_grok_tts"), false);
     assert.equal(toolNames.includes("local_grok_stt"), false);

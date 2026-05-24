@@ -1,25 +1,73 @@
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
 /**
  * xAI Imagine REST API client for image and video generation.
  *
- * These APIs are separate from the local Grok Build CLI. They require an xAI
- * platform API key via XAI_API_KEY or GROK_CODE_XAI_API_KEY; the extension does
- * not read or reuse private Grok CLI cached tokens from ~/.grok.
+ * These APIs are separate from the local Grok Build CLI. Prefer explicit xAI
+ * platform API keys via XAI_API_KEY or GROK_CODE_XAI_API_KEY. When no explicit
+ * key is configured, the client can reuse the Grok CLI cached access token from
+ * ~/.grok/auth.json. Never log or expose token values.
  *
- * Evidence: xAI docs for /v1/images/generations and /v1/videos/generations.
+ * Evidence: xAI docs for /v1/images/generations and /v1/videos/generations;
+ * local Grok CLI auth cache stores an auth.x.ai access token in auth.json under
+ * the `key` field, and that token successfully authenticates /v1/models.
  */
 
 const XAI_BASE_URL = "https://api.x.ai";
 export const DEFAULT_IMAGE_MODEL = "grok-imagine-image-quality";
 export const DEFAULT_VIDEO_MODEL = "grok-imagine-video";
+export const DEFAULT_GROK_AUTH_PATH = join(homedir(), ".grok", "auth.json");
 
-export function getXaiApiKey(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return env.XAI_API_KEY || env.GROK_CODE_XAI_API_KEY;
+interface GrokAuthEntry {
+  key?: string;
+  expires_at?: string;
+  oidc_issuer?: string;
+}
+
+function isFutureIsoDate(value: string | undefined, now = Date.now()): boolean {
+  if (!value) return true;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? true : parsed > now;
+}
+
+export function getCachedGrokXaiToken(
+  options: { authPath?: string; now?: number } = {},
+): string | undefined {
+  const authPath = options.authPath ?? DEFAULT_GROK_AUTH_PATH;
+  if (!existsSync(authPath)) return undefined;
+
+  try {
+    const data = JSON.parse(readFileSync(authPath, "utf8")) as Record<string, GrokAuthEntry>;
+    const entries = Object.entries(data).filter(([cacheKey, entry]) => {
+      const issuer = entry.oidc_issuer ?? cacheKey.split("::", 1)[0];
+      return issuer === "https://auth.x.ai" && Boolean(entry.key);
+    });
+
+    const valid = entries.find(([, entry]) => isFutureIsoDate(entry.expires_at, options.now));
+    return valid?.[1].key;
+  } catch {
+    return undefined;
+  }
+}
+
+export function getXaiApiKey(
+  env: NodeJS.ProcessEnv = process.env,
+  options: { authPath?: string; now?: number } = {},
+): string | undefined {
+  if (env.XAI_API_KEY || env.GROK_CODE_XAI_API_KEY)
+    return env.XAI_API_KEY || env.GROK_CODE_XAI_API_KEY;
+  if (env.PI_GROK_BUILD_DISABLE_GROK_AUTH_CACHE === "1") return undefined;
+  return getCachedGrokXaiToken(options);
 }
 
 function requireApiKey(): string {
   const key = getXaiApiKey();
   if (!key) {
-    throw new Error("xAI API key not found. Set XAI_API_KEY or GROK_CODE_XAI_API_KEY.");
+    throw new Error(
+      "xAI API key not found. Set XAI_API_KEY/GROK_CODE_XAI_API_KEY or authenticate Grok CLI so ~/.grok/auth.json contains a valid auth.x.ai token.",
+    );
   }
   return key;
 }

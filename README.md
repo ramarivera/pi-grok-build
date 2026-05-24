@@ -69,13 +69,13 @@ See [`docs/integration-modes.md`](docs/integration-modes.md) for the tradeoffs a
 
 ## Image and video tools
 
-If `XAI_API_KEY` or `GROK_CODE_XAI_API_KEY` is configured, the extension registers xAI Imagine tools:
+If `XAI_API_KEY`, `GROK_CODE_XAI_API_KEY`, or a valid local Grok CLI cached auth token is available, the extension registers xAI Imagine tools:
 
 - `grok_imagine_image`
 - `grok_imagine_video`
 - `grok_imagine_video_status`
 
-Without an API key, these tools are intentionally not registered so Pi does not advertise a fake media surface.
+Without xAI REST auth, these tools are intentionally not registered so Pi does not advertise a fake media surface.
 
 See [`docs/media-tools.md`](docs/media-tools.md) for endpoint evidence, shipped behavior, and verification status.
 

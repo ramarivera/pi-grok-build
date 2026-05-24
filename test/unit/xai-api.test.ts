@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
 import {
   DEFAULT_IMAGE_MODEL,
   DEFAULT_VIDEO_MODEL,
+  getCachedGrokXaiToken,
   getXaiApiKey,
   imagineImage,
   imagineVideo,
@@ -13,6 +17,7 @@ import {
 const originalFetch = globalThis.fetch;
 const originalXaiKey = process.env.XAI_API_KEY;
 const originalGrokCodeKey = process.env.GROK_CODE_XAI_API_KEY;
+const originalDisableGrokAuthCache = process.env.PI_GROK_BUILD_DISABLE_GROK_AUTH_CACHE;
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
@@ -20,6 +25,9 @@ afterEach(() => {
   else process.env.XAI_API_KEY = originalXaiKey;
   if (originalGrokCodeKey === undefined) delete process.env.GROK_CODE_XAI_API_KEY;
   else process.env.GROK_CODE_XAI_API_KEY = originalGrokCodeKey;
+  if (originalDisableGrokAuthCache === undefined)
+    delete process.env.PI_GROK_BUILD_DISABLE_GROK_AUTH_CACHE;
+  else process.env.PI_GROK_BUILD_DISABLE_GROK_AUTH_CACHE = originalDisableGrokAuthCache;
 });
 
 function installJsonFetch(handler: (url: string, init: RequestInit | undefined) => unknown): void {
@@ -40,12 +48,57 @@ describe("xAI API key resolution", () => {
     );
     assert.equal(getXaiApiKey({ GROK_CODE_XAI_API_KEY: "grok-code" } as any), "grok-code");
   });
+
+  it("falls back to a valid Grok CLI auth.x.ai cached access token", () => {
+    const dir = mkdtempSync(join(tmpdir(), "pi-grok-build-auth-"));
+    const authPath = join(dir, "auth.json");
+    try {
+      writeFileSync(
+        authPath,
+        JSON.stringify({
+          "https://auth.x.ai::account": {
+            key: "cached-access-token",
+            expires_at: "2999-01-01T00:00:00.000Z",
+            oidc_issuer: "https://auth.x.ai",
+            refresh_token: "must-not-use-refresh-token",
+          },
+        }),
+      );
+
+      assert.equal(getCachedGrokXaiToken({ authPath }), "cached-access-token");
+      assert.equal(getXaiApiKey({} as any, { authPath }), "cached-access-token");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("ignores expired cached Grok CLI tokens", () => {
+    const dir = mkdtempSync(join(tmpdir(), "pi-grok-build-auth-"));
+    const authPath = join(dir, "auth.json");
+    try {
+      writeFileSync(
+        authPath,
+        JSON.stringify({
+          "https://auth.x.ai::account": {
+            key: "expired-token",
+            expires_at: "2000-01-01T00:00:00.000Z",
+            oidc_issuer: "https://auth.x.ai",
+          },
+        }),
+      );
+
+      assert.equal(getCachedGrokXaiToken({ authPath }), undefined);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("imagineImage", () => {
   it("returns error when API key is missing", async () => {
     delete process.env.XAI_API_KEY;
     delete process.env.GROK_CODE_XAI_API_KEY;
+    process.env.PI_GROK_BUILD_DISABLE_GROK_AUTH_CACHE = "1";
 
     const result = await imagineImage({ prompt: "a cat" });
 
