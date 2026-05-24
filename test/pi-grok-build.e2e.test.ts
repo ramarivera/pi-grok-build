@@ -205,9 +205,7 @@ describe("pi-grok-build e2e — provider stream integration", () => {
     const model = { id: "grok-build", provider: "xai" } as any;
     const opts = buildSpawnOptions(model, {
       effort: "xhigh",
-      noPlan: true,
       disableWebSearch: true,
-      noSubagents: true,
       permissionMode: "auto",
       rules: "Use TypeScript",
     });

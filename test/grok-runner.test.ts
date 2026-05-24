@@ -75,9 +75,9 @@ describe("buildGrokArgs", () => {
     assert.ok(args.includes("--check"));
   });
 
-  it("adds bestOfN", () => {
-    const args = buildGrokArgs("hi", { bestOfN: 3 });
-    assert.deepEqual(args.filter((_, i) => args[i - 1] === "--best-of-n"), ["3"]);
+  it("does not expose best-of-n in provider args", () => {
+    const args = buildGrokArgs("hi", { bestOfN: 3 } as any);
+    assert.ok(!args.includes("--best-of-n"));
   });
 
   it("adds verbatim", () => {
@@ -164,22 +164,15 @@ describe("buildGrokArgs", () => {
     assert.ok(args.includes("--restore-code"));
   });
 
-  it("adds agent and agents (0.1.216)", () => {
-    const args1 = buildGrokArgs("hi", { agent: "grok-build-plan" });
-    assert.ok(args1.includes("--agent"));
-    assert.ok(args1.includes("grok-build-plan"));
-
-    const args2 = buildGrokArgs("hi", { agents: '{"foo": {"model": "grok-4"}}' });
-    assert.ok(args2.includes("--agents"));
-  });
-
-  it("adds worktree (boolean and named) (0.1.216)", () => {
-    const argsBool = buildGrokArgs("hi", { worktree: true });
-    assert.ok(argsBool.includes("--worktree"));
-
-    const argsNamed = buildGrokArgs("hi", { worktree: "feature-x" });
-    assert.ok(argsNamed.includes("--worktree"));
-    assert.ok(argsNamed.includes("feature-x"));
+  it("does not expose Grok agent/subagent orchestration args", () => {
+    const args = buildGrokArgs("hi", {
+      agent: "grok-build-plan",
+      agents: '{"foo": {"model": "grok-4"}}',
+      worktree: true,
+    } as any);
+    assert.ok(!args.includes("--agent"));
+    assert.ok(!args.includes("--agents"));
+    assert.ok(!args.includes("--worktree"));
   });
 
   it("supports expanded reasoningEffort values (0.1.216)", () => {

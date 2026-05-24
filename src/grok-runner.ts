@@ -7,48 +7,24 @@
  */
 
 import spawn from "cross-spawn";
-import { existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import type { GrokRunResult, GrokSpawnOptions, GrokModelDescriptor } from "./types.ts";
 
-/** Known grok CLI binary names and install locations to try. */
-const GROK_BINARIES = ["grok"] as const;
+const GROK_BINARY = "grok";
 
-function candidateGrokPaths(): string[] {
-  const home = homedir();
-  return [
-    ...GROK_BINARIES,
-    join(home, ".local", "bin", "grok"),
-    join(home, ".grok", "bin", "grok"),
-    join(home, ".grok", "downloads", "grok-macos-aarch64"),
-    join(home, ".grok", "downloads", "grok-linux-x64"),
-    join(home, ".grok", "downloads", "grok-linux-aarch64"),
-  ];
-}
-
-/** Detect the installed grok binary on PATH or in the standard Grok install path. */
+/** Detect the installed grok binary on PATH only. */
 export function detectGrokBinary(): string {
-  for (const bin of candidateGrokPaths()) {
-    try {
-      if (bin.includes("/")) {
-        if (!existsSync(bin)) continue;
-        execSync(`"${bin}" --version`, { stdio: "pipe", timeout: 5000 });
-        return bin;
-      }
-      execSync(`command -v ${bin}`, { stdio: "pipe", timeout: 5000 });
-      return bin;
-    } catch {
-      continue;
-    }
+  try {
+    execFileSync(GROK_BINARY, ["--version"], { stdio: "pipe", timeout: 5000 });
+    return GROK_BINARY;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      "Grok Build CLI not found on PATH. Install/authenticate Grok CLI and make `grok` available in the Pi runtime PATH. " +
+        `Original error: ${message}`,
+    );
   }
-  throw new Error(
-    "Grok Build CLI not found. Install it:\n" +
-      "  curl -fsSL https://x.ai/cli/install.sh | bash\n" +
-      "Then authenticate via 'grok' (first launch opens browser).",
-  );
 }
 
 /**
@@ -99,10 +75,6 @@ export function buildGrokArgs(
 
   if (options.check) {
     args.push("--check");
-  }
-
-  if (options.bestOfN != null) {
-    args.push("--best-of-n", String(options.bestOfN));
   }
 
   if (options.verbatim) {
@@ -170,22 +142,6 @@ export function buildGrokArgs(
     args.push("--restore-code");
   }
 
-  if (options.agent) {
-    args.push("--agent", options.agent);
-  }
-
-  if (options.agents) {
-    args.push("--agents", options.agents);
-  }
-
-  if (options.worktree !== undefined) {
-    if (options.worktree === true) {
-      args.push("--worktree");
-    } else if (typeof options.worktree === "string") {
-      args.push("--worktree", options.worktree);
-    }
-  }
-
   if (options.oauth) {
     args.push("--oauth");
   }
@@ -221,11 +177,7 @@ export function spawnGrok(
   const proc = spawn(binary, args, {
     stdio: ["pipe", "pipe", "pipe"],
     cwd: options.cwd ?? process.cwd(),
-    env: {
-      ...process.env,
-      // Grok uses GROK_CODE_XAI_API_KEY for non-browser auth
-      ...(process.env.GROK_CODE_XAI_API_KEY ? {} : {}),
-    },
+    env: process.env,
   });
 
   return proc as ChildProcess;
@@ -250,7 +202,7 @@ export function validateGrokPresence(): void {
 export function validateGrokAuth(): boolean {
   try {
     const binary = detectGrokBinary();
-    const stdout = execSync(`${binary} models`, {
+    const stdout = execFileSync(binary, ["models"], {
       stdio: "pipe",
       timeout: 15_000,
       encoding: "utf-8",
@@ -271,12 +223,11 @@ export function validateGrokAuth(): boolean {
 export function getGrokVersion(): string {
   try {
     const binary = detectGrokBinary();
-    return execSync(`${binary} --version`, {
+    return execFileSync(binary, ["--version"], {
       stdio: "pipe",
       timeout: 5000,
-    })
-      .toString()
-      .trim();
+      encoding: "utf-8",
+    }).trim();
   } catch {
     return "unknown";
   }
@@ -298,7 +249,7 @@ export function runGrokCommand(
   const maxOutput = 500_000; // 500KB limit
 
   try {
-    const stdout = execSync(`${binary} ${args.join(" ")}`, {
+    const stdout = execFileSync(binary, args, {
       cwd: options.cwd ?? process.cwd(),
       timeout: options.timeout ?? 120_000,
       maxBuffer: maxOutput,

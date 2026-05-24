@@ -170,9 +170,6 @@ export interface GrokSpawnOptions {
   /** Append a self-verification loop to the prompt. */
   check?: boolean;
 
-  /** Run the task N ways in parallel and pick the best. */
-  bestOfN?: number;
-
   /** Send the prompt exactly as given (no template wrapping). */
   verbatim?: boolean;
 
@@ -219,15 +216,6 @@ export interface GrokSpawnOptions {
 
   /** Restore the original session's git commit when resuming (pairs with --resume / --continue). */
   restoreCode?: boolean;
-
-  /** Agent name or path to agent definition file (--agent). */
-  agent?: string;
-
-  /** Inline subagent definitions as JSON string (--agents <JSON>). Powerful for custom orchestration. */
-  agents?: string;
-
-  /** Start in a new git worktree. true = unnamed, string = named worktree (--worktree / -w). */
-  worktree?: boolean | string;
 
   /** Force OAuth login flow (--oauth). */
   oauth?: boolean;

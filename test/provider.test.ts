@@ -144,11 +144,14 @@ describe("contextHasImages", () => {
 });
 
 describe("buildSpawnOptions", () => {
-  it("sets modelId and alwaysApprove by default", () => {
-    const model = { id: "grok-3", provider: "xai" } as any;
+  it("sets boring one-shot provider defaults", () => {
+    const model = { id: "grok-build", provider: "pi-grok-build" } as any;
     const opts = buildSpawnOptions(model, {});
-    assert.equal(opts.modelId, "grok-3");
+    assert.equal(opts.modelId, "grok-build");
     assert.equal(opts.alwaysApprove, true);
+    assert.equal(opts.noSubagents, true);
+    assert.equal(opts.noPlan, true);
+    assert.equal(opts.maxTurns, 1);
   });
 
   it("passthroughs advanced options", () => {
@@ -158,11 +161,8 @@ describe("buildSpawnOptions", () => {
       maxTurns: 7,
       reasoningEffort: "medium",
       check: true,
-      bestOfN: 2,
       verbatim: true,
       disableWebSearch: true,
-      noSubagents: true,
-      noPlan: true,
       noMemory: true,
       experimentalMemory: true,
       permissionMode: "auto",
@@ -181,7 +181,6 @@ describe("buildSpawnOptions", () => {
     assert.equal(opts.maxTurns, 7);
     assert.equal(opts.reasoningEffort, "medium");
     assert.equal(opts.check, true);
-    assert.equal(opts.bestOfN, 2);
     assert.equal(opts.verbatim, true);
     assert.equal(opts.disableWebSearch, true);
     assert.equal(opts.noSubagents, true);

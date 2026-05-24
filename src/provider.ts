@@ -44,11 +44,8 @@ type StreamViaGrokOptions = SimpleStreamOptions & {
   maxTurns?: GrokSpawnOptions["maxTurns"];
   reasoningEffort?: GrokSpawnOptions["reasoningEffort"];
   check?: GrokSpawnOptions["check"];
-  bestOfN?: GrokSpawnOptions["bestOfN"];
   verbatim?: GrokSpawnOptions["verbatim"];
   disableWebSearch?: GrokSpawnOptions["disableWebSearch"];
-  noSubagents?: GrokSpawnOptions["noSubagents"];
-  noPlan?: GrokSpawnOptions["noPlan"];
   noMemory?: GrokSpawnOptions["noMemory"];
   experimentalMemory?: GrokSpawnOptions["experimentalMemory"];
   permissionMode?: GrokSpawnOptions["permissionMode"];
@@ -64,9 +61,6 @@ type StreamViaGrokOptions = SimpleStreamOptions & {
 
   // 0.1.216 passthroughs
   restoreCode?: GrokSpawnOptions["restoreCode"];
-  agent?: GrokSpawnOptions["agent"];
-  agents?: GrokSpawnOptions["agents"];
-  worktree?: GrokSpawnOptions["worktree"];
   oauth?: GrokSpawnOptions["oauth"];
   promptFile?: GrokSpawnOptions["promptFile"];
   promptJson?: GrokSpawnOptions["promptJson"];
@@ -161,6 +155,8 @@ export function buildSpawnOptions(
     // their worker auth channel is unavailable. Pi already owns orchestration;
     // default provider calls to a single Grok turn unless explicitly overridden.
     noSubagents: true,
+    noPlan: true,
+    maxTurns: 1,
   };
 
   if (options?.cwd !== undefined) spawnOpts.cwd = options.cwd;
@@ -169,11 +165,10 @@ export function buildSpawnOptions(
   if (options?.maxTurns != null) spawnOpts.maxTurns = options.maxTurns;
   if (options?.reasoningEffort) spawnOpts.reasoningEffort = options.reasoningEffort;
   if (options?.check) spawnOpts.check = options.check;
-  if (options?.bestOfN != null) spawnOpts.bestOfN = options.bestOfN;
   if (options?.verbatim) spawnOpts.verbatim = options.verbatim;
   if (options?.disableWebSearch) spawnOpts.disableWebSearch = options.disableWebSearch;
-  if (options?.noSubagents) spawnOpts.noSubagents = options.noSubagents;
-  if (options?.noPlan) spawnOpts.noPlan = options.noPlan;
+  // Provider mode owns orchestration; Grok subagents are intentionally out of scope.
+  // Keep plan mode disabled for one-shot Pi print/json/rpc provider calls.
   if (options?.noMemory) spawnOpts.noMemory = options.noMemory;
   if (options?.experimentalMemory) spawnOpts.experimentalMemory = options.experimentalMemory;
   if (options?.permissionMode) spawnOpts.permissionMode = options.permissionMode;
@@ -189,9 +184,6 @@ export function buildSpawnOptions(
 
   // 0.1.216 additions
   if (options?.restoreCode) spawnOpts.restoreCode = options.restoreCode;
-  if (options?.agent) spawnOpts.agent = options.agent;
-  if (options?.agents) spawnOpts.agents = options.agents;
-  if (options?.worktree !== undefined) spawnOpts.worktree = options.worktree;
   if (options?.oauth) spawnOpts.oauth = options.oauth;
   if (options?.promptFile) spawnOpts.promptFile = options.promptFile;
   if (options?.promptJson) spawnOpts.promptJson = options.promptJson;
@@ -385,7 +377,7 @@ export function streamViaGrok(
         } else if (isEndEvent(msg)) {
           clearTimeout(inactivityTimer);
           finishOpenBlocks();
-          output.responseId = msg.requestId;
+          if (msg.requestId) output.responseId = msg.requestId;
           output.stopReason = msg.stopReason === "MaxTokens" ? "length" : "stop";
           if (proc) forceKillProcess(proc);
           rl.close();
