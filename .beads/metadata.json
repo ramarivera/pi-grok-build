@@ -1,0 +1,7 @@
+{
+  "database": "jsonl",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "pgb",
+  "project_id": "pi-grok-build-reality-rebuild"
+}

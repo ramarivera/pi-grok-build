@@ -1,0 +1,13 @@
+# Beads Configuration File
+# This repository uses Beads for local, repo-scoped issue tracking.
+# Created by Pi goal session 1 for the pi-grok-build reality rebuild.
+
+# Prefer JSONL as the human/agent-readable source of truth until `bd init/onboard`
+# can be run in a healthy shell to create/repair any local database caches.
+no-db: true
+
+# Issue prefix for this repository.
+issue-prefix: "pgb"
+
+# Keep command output human-readable by default.
+json: false
