@@ -1,10 +1,6 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  classifyGrokFailure,
-  formatGrokFailure,
-  redactGrokArgs,
-} from "../../src/diagnostics.ts";
+import { describe, it } from "node:test";
+import { classifyGrokFailure, formatGrokFailure, redactGrokArgs } from "../../src/diagnostics.ts";
 
 describe("redactGrokArgs", () => {
   it("redacts inline prompts and prompt JSON without changing argv shape", () => {
@@ -14,7 +10,7 @@ describe("redactGrokArgs", () => {
       "--model",
       "grok-build",
       "--prompt-json",
-      "{\"secret\":true}",
+      '{"secret":true}',
       "--system-prompt-override",
       "system secret",
     ];

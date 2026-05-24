@@ -11,26 +11,24 @@
  */
 
 import { createInterface } from "node:readline";
-import { AssistantMessageEventStream, type Model, type SimpleStreamOptions } from "@earendil-works/pi-ai";
 import {
-  spawnGrok,
-  registerProcess,
-  forceKillProcess,
-  captureStderr,
-  buildGrokArgs,
-} from "./grok-runner.ts";
+  AssistantMessageEventStream,
+  type Model,
+  type SimpleStreamOptions,
+} from "@earendil-works/pi-ai";
+import { classifyGrokFailure, createDiagnostics, formatGrokFailure } from "./diagnostics.ts";
+import { createGrokEventBridge } from "./grok-bridge.ts";
 import {
-  parseGrokLine,
-  isStreamEvent,
-  isResultEvent,
+  isEndEvent,
   isErrorEvent,
+  isResultEvent,
+  isStreamEvent,
   isTextEvent,
   isThoughtEvent,
-  isEndEvent,
+  parseGrokLine,
 } from "./grok-parser.ts";
-import { createGrokEventBridge } from "./grok-bridge.ts";
-import type { GrokNdjsonMessage, GrokSpawnOptions } from "./types.ts";
-import { classifyGrokFailure, createDiagnostics, formatGrokFailure } from "./diagnostics.ts";
+import { captureStderr, forceKillProcess, registerProcess, spawnGrok } from "./grok-runner.ts";
+import type { GrokSpawnOptions } from "./types.ts";
 
 /** Inactivity timeout: kill subprocess if no stdout for 180 seconds. */
 const INACTIVITY_TIMEOUT_MS = 180_000;
@@ -243,7 +241,7 @@ export function streamViaGrok(
       const output = bridge.getOutput();
 
       let streamEnded = false;
-      let broken = false;
+      const broken = false;
       let started = false;
       let textIndex: number | undefined;
       let thinkingIndex: number | undefined;
@@ -281,21 +279,36 @@ export function streamViaGrok(
         if (block?.type === "thinking") {
           block.thinking += delta;
         }
-        stream.push({ type: "thinking_delta", contentIndex: thinkingIndex, delta, partial: output });
+        stream.push({
+          type: "thinking_delta",
+          contentIndex: thinkingIndex,
+          delta,
+          partial: output,
+        });
       }
 
       function finishOpenBlocks(): void {
         if (thinkingIndex !== undefined) {
           const block = output.content[thinkingIndex];
           if (block?.type === "thinking") {
-            stream.push({ type: "thinking_end", contentIndex: thinkingIndex, content: block.thinking, partial: output });
+            stream.push({
+              type: "thinking_end",
+              contentIndex: thinkingIndex,
+              content: block.thinking,
+              partial: output,
+            });
           }
           thinkingIndex = undefined;
         }
         if (textIndex !== undefined) {
           const block = output.content[textIndex];
           if (block?.type === "text") {
-            stream.push({ type: "text_end", contentIndex: textIndex, content: block.text, partial: output });
+            stream.push({
+              type: "text_end",
+              contentIndex: textIndex,
+              content: block.text,
+              partial: output,
+            });
           }
           textIndex = undefined;
         }
@@ -323,7 +336,7 @@ export function streamViaGrok(
           type: "error",
           reason: "error",
           error: errorMessage,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);
         stream.end();
       }
@@ -385,7 +398,9 @@ export function streamViaGrok(
 
         const msg = parseGrokLine(line);
         if (!msg) {
-          diagnostics.trace("ignored non-json grok stream line", () => ({ lineLength: line.length }));
+          diagnostics.trace("ignored non-json grok stream line", () => ({
+            lineLength: line.length,
+          }));
           return;
         }
 
@@ -432,9 +447,7 @@ export function streamViaGrok(
           (c: any) => c.type === "toolCall",
         );
         const effectiveReason =
-          output.stopReason === "toolUse" && piToolCalls.length === 0
-            ? "stop"
-            : output.stopReason;
+          output.stopReason === "toolUse" && piToolCalls.length === 0 ? "stop" : output.stopReason;
 
         streamEnded = true;
         stream.push({
@@ -446,7 +459,7 @@ export function streamViaGrok(
                 ? "length"
                 : "stop",
           message: { ...output, stopReason: effectiveReason },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);
         stream.end();
       }
@@ -479,7 +492,7 @@ export function streamViaGrok(
           errorMessage: userMessage,
           timestamp: Date.now(),
         },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       stream.end();
     } finally {

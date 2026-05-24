@@ -1,5 +1,5 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { createGrokEventBridge } from "../../src/grok-bridge.ts";
 
 // Minimal mock stream that captures pushed events

@@ -23,6 +23,8 @@ Tests assert redaction behavior and error classification behavior, not log outpu
 
 ## User-facing failures
 
+Provider failures are categorized in `src/diagnostics.ts`, with the PATH check additionally exposed as an Effect-modeled `detectGrokBinaryEffect()` API for callers that want typed error composition instead of thrown exceptions.
+
 Provider failures are surfaced as Pi assistant stream `error` events with categorized messages:
 
 - missing Grok CLI on `PATH`

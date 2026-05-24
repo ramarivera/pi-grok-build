@@ -36,36 +36,28 @@ export function parseGrokLine(line: string): GrokNdjsonMessage | null {
 /**
  * Check if a parsed message is a stream event (assistant content).
  */
-export function isStreamEvent(
-  msg: GrokNdjsonMessage,
-): msg is import("./types.ts").GrokStreamEvent {
+export function isStreamEvent(msg: GrokNdjsonMessage): msg is import("./types.ts").GrokStreamEvent {
   return msg.type === "assistant";
 }
 
 /**
  * Check if a parsed message is the final result.
  */
-export function isResultEvent(
-  msg: GrokNdjsonMessage,
-): msg is import("./types.ts").GrokResultEvent {
+export function isResultEvent(msg: GrokNdjsonMessage): msg is import("./types.ts").GrokResultEvent {
   return msg.type === "result";
 }
 
 /**
  * Check if a parsed message is a top-level Grok CLI error event.
  */
-export function isErrorEvent(
-  msg: GrokNdjsonMessage,
-): msg is import("./types.ts").GrokErrorEvent {
+export function isErrorEvent(msg: GrokNdjsonMessage): msg is import("./types.ts").GrokErrorEvent {
   return msg.type === "error";
 }
 
 /**
  * Check if a parsed message is a current Grok CLI text delta event.
  */
-export function isTextEvent(
-  msg: GrokNdjsonMessage,
-): msg is import("./types.ts").GrokTextEvent {
+export function isTextEvent(msg: GrokNdjsonMessage): msg is import("./types.ts").GrokTextEvent {
   return msg.type === "text";
 }
 
@@ -81,17 +73,13 @@ export function isThoughtEvent(
 /**
  * Check if a parsed message is a current Grok CLI final event.
  */
-export function isEndEvent(
-  msg: GrokNdjsonMessage,
-): msg is import("./types.ts").GrokEndEvent {
+export function isEndEvent(msg: GrokNdjsonMessage): msg is import("./types.ts").GrokEndEvent {
   return msg.type === "end";
 }
 
 /**
  * Check if a parsed message is a system event.
  */
-export function isSystemEvent(
-  msg: GrokNdjsonMessage,
-): msg is import("./types.ts").GrokSystemEvent {
+export function isSystemEvent(msg: GrokNdjsonMessage): msg is import("./types.ts").GrokSystemEvent {
   return msg.type === "system";
 }

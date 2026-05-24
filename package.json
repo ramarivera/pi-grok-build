@@ -42,7 +42,10 @@
     "test:e2e:grok": "tsx --test test/e2e/manual/**/*.test.ts test/e2e/manual/**/*.e2e.test.ts",
     "test:grok": "npm run test:e2e:grok",
     "typecheck": "npm exec --package typescript -- tsc --noEmit",
-    "lint": "npm run typecheck"
+    "lint": "biome lint . && npm run typecheck",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check . && npm run typecheck"
   },
   "pi": {
     "extensions": [
@@ -55,9 +58,11 @@
   },
   "dependencies": {
     "cross-spawn": "^7.0.6",
+    "effect": "^3.21.2",
     "pino": "^10.3.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
     "@earendil-works/pi-ai": "^0.74.0",
     "@earendil-works/pi-coding-agent": "^0.74.0",
     "@types/cross-spawn": "^6.0.6",

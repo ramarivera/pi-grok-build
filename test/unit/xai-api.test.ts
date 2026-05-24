@@ -1,11 +1,6 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  imagineImage,
-  imagineVideo,
-  textToSpeech,
-  speechToText,
-} from "../../src/xai-api.ts";
+import { describe, it } from "node:test";
+import { imagineImage, imagineVideo, speechToText, textToSpeech } from "../../src/xai-api.ts";
 
 describe("xai-api client exports", () => {
   it("exports all four API functions", () => {

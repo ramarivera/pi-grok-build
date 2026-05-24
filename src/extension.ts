@@ -13,28 +13,28 @@ import type {
   ExtensionCommandContext,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
+import { classifyGrokFailure, createDiagnostics, formatGrokFailure } from "./diagnostics.ts";
 import {
-  validateGrokAuth,
   getGrokVersion,
-  runGrokInspect,
-  runGrokCommand,
-  runGrokModels,
-  runGrokSessions,
-  runGrokMemory,
-  runGrokShare,
   killAllProcesses,
   parseGrokModelsOutput,
+  runGrokCommand,
+  runGrokInspect,
+  runGrokMemory,
+  runGrokModels,
+  runGrokSessions,
+  runGrokShare,
+  validateGrokAuth,
 } from "./grok-runner.ts";
-import type { GrokModelDescriptor, GrokRunResult } from "./types.ts";
-import { createDiagnostics, formatGrokFailure, classifyGrokFailure } from "./diagnostics.ts";
-import { streamViaGrok } from "./provider.ts";
 import {
-  GROK_BUILD_PROVIDER_ID,
-  GROK_JSONL_INTEGRATION_MODE,
   buildGrokProviderModels,
   fallbackGrokBuildModel,
+  GROK_BUILD_PROVIDER_ID,
+  GROK_JSONL_INTEGRATION_MODE,
 } from "./model-metadata.ts";
-import { imagineImage, imagineVideo, textToSpeech, speechToText } from "./xai-api.ts";
+import { streamViaGrok } from "./provider.ts";
+import type { GrokRunResult } from "./types.ts";
+import { imagineImage, imagineVideo, speechToText, textToSpeech } from "./xai-api.ts";
 
 // Kill all active Grok subprocesses on exit to prevent orphans
 process.on("exit", killAllProcesses);
@@ -76,7 +76,9 @@ const IMAGINE_VIDEO_SCHEMA = Type.Object(
   {
     prompt: Type.String({ description: "Text prompt describing the video to generate" }),
     model: Type.Optional(Type.String({ description: "Model ID, e.g. grok-2-video" })),
-    image_url: Type.Optional(Type.String({ description: "Optional source image URL or base64 data URI" })),
+    image_url: Type.Optional(
+      Type.String({ description: "Optional source image URL or base64 data URI" }),
+    ),
     duration: Type.Optional(Type.Number({ description: "Duration in seconds (up to 15)" })),
     aspect_ratio: Type.Optional(Type.String({ description: "Aspect ratio, e.g. 16:9" })),
     resolution: Type.Optional(Type.String({ description: "Resolution, e.g. 720p" })),
@@ -133,9 +135,8 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
             exitCode: cliModelResult.exitCode,
           }));
         }
-        const models = cliModels.length > 0
-          ? buildGrokProviderModels(cliModels)
-          : [fallbackGrokBuildModel()];
+        const models =
+          cliModels.length > 0 ? buildGrokProviderModels(cliModels) : [fallbackGrokBuildModel()];
 
         pi.registerProvider(PROVIDER_ID, {
           baseUrl: "pi-grok-build",
@@ -159,9 +160,10 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
             if (!action || action === "status") {
               const version = getGrokVersion();
               const isAuthed = validateGrokAuth();
-              const status = version === "unknown"
-                ? "Grok CLI missing or unavailable on PATH"
-                : `Grok Build CLI v${version}`;
+              const status =
+                version === "unknown"
+                  ? "Grok CLI missing or unavailable on PATH"
+                  : `Grok Build CLI v${version}`;
               ctx.ui.notify(
                 `${status} | Auth: ${isAuthed ? "✅" : "❌"} | Provider: ${PROVIDER_ID} (${models.length} models)`,
                 version === "unknown" ? "error" : "info",
@@ -177,9 +179,7 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
               const result = runGrokModels({ cwd: ctx.cwd });
               if (result.ok) {
                 const discovered = parseGrokModelsOutput(result.stdout);
-                const list = discovered
-                  .map((m) => `${m.id} — ${m.name}`)
-                  .join("\n");
+                const list = discovered.map((m) => `${m.id} — ${m.name}`).join("\n");
                 ctx.ui.notify(list || result.stdout.slice(0, 2000), "info");
               } else {
                 ctx.ui.notify(result.stderr.slice(0, 500), "error");
@@ -241,8 +241,7 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
         > = {
           name: `${toolNamePrefix}grok_inspect`,
           label: "Grok Inspect",
-          description:
-            "Show Grok Build CLI status: version, authentication, and available models.",
+          description: "Show Grok Build CLI status: version, authentication, and available models.",
           parameters: EMPTY_SCHEMA,
           async execute() {
             const version = getGrokVersion();
@@ -277,7 +276,7 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
           name: `${toolNamePrefix}grok_run`,
           label: "Grok Run",
           description:
-            "Run an arbitrary Grok CLI command with arguments. Example: grok_run with args [\"models\"] lists models.",
+            'Run an arbitrary Grok CLI command with arguments. Example: grok_run with args ["models"] lists models.',
           parameters: RUN_SCHEMA,
           async execute(_toolCallId, params) {
             const cmdOpts: { cwd?: string; timeout?: number } = {};
@@ -339,11 +338,7 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
           },
         };
 
-        const sessionsTool: ToolDefinition<
-          typeof SESSION_SCHEMA,
-          GrokRunResult,
-          unknown
-        > = {
+        const sessionsTool: ToolDefinition<typeof SESSION_SCHEMA, GrokRunResult, unknown> = {
           name: `${toolNamePrefix}grok_sessions`,
           label: "Grok Sessions",
           description:
@@ -360,7 +355,11 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
                   {
                     type: "text",
                     text: JSON.stringify(
-                      { ok: shareResult.ok, stdout: shareResult.stdout, stderr: shareResult.stderr },
+                      {
+                        ok: shareResult.ok,
+                        stdout: shareResult.stdout,
+                        stderr: shareResult.stderr,
+                      },
                       null,
                       2,
                     ),
@@ -386,11 +385,7 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
           },
         };
 
-        const memoryTool: ToolDefinition<
-          typeof EMPTY_SCHEMA,
-          GrokRunResult,
-          unknown
-        > = {
+        const memoryTool: ToolDefinition<typeof EMPTY_SCHEMA, GrokRunResult, unknown> = {
           name: `${toolNamePrefix}grok_memory`,
           label: "Grok Memory",
           description: "Show Grok cross-session memory entries.",
@@ -459,7 +454,12 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
                 {
                   type: "text",
                   text: JSON.stringify(
-                    { ok: result.ok, url: result.url, request_id: result.request_id, error: result.error },
+                    {
+                      ok: result.ok,
+                      url: result.url,
+                      request_id: result.request_id,
+                      error: result.error,
+                    },
                     null,
                     2,
                   ),
@@ -470,11 +470,7 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
           },
         };
 
-        const ttsTool: ToolDefinition<
-          typeof TTS_SCHEMA,
-          { audioBase64?: string },
-          unknown
-        > = {
+        const ttsTool: ToolDefinition<typeof TTS_SCHEMA, { audioBase64?: string }, unknown> = {
           name: `${toolNamePrefix}grok_tts`,
           label: "Grok TTS",
           description: "Convert text to speech using the xAI Voice API.",
@@ -488,7 +484,11 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
                 {
                   type: "text",
                   text: JSON.stringify(
-                    { ok: result.ok, audioLength: result.audioBase64?.length ?? 0, error: result.error },
+                    {
+                      ok: result.ok,
+                      audioLength: result.audioBase64?.length ?? 0,
+                      error: result.error,
+                    },
                     null,
                     2,
                   ),
@@ -499,14 +499,11 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
           },
         };
 
-        const sttTool: ToolDefinition<
-          typeof STT_SCHEMA,
-          { text?: string },
-          unknown
-        > = {
+        const sttTool: ToolDefinition<typeof STT_SCHEMA, { text?: string }, unknown> = {
           name: `${toolNamePrefix}grok_stt`,
           label: "Grok STT",
-          description: "Transcribe audio to text using the xAI Voice API. Provide filePath or base64Data.",
+          description:
+            "Transcribe audio to text using the xAI Voice API. Provide filePath or base64Data.",
           parameters: STT_SCHEMA,
           async execute(_toolCallId, params) {
             const result = await speechToText(params);

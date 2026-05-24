@@ -40,19 +40,13 @@ function runPi(args: string[]): string {
 
 describe("pi-grok-build real Pi runtime e2e", () => {
   it("prints visible text through pi -p", () => {
-    const stdout = runPi([
-      ...piArgs,
-      "Respond exactly PI_GROK_OK and nothing else.",
-    ]);
+    const stdout = runPi([...piArgs, "Respond exactly PI_GROK_OK and nothing else."]);
 
     assert.ok(stdout.includes(PI_OK), stdout);
   });
 
   it("emits parseable JSON events containing visible text through pi --mode json -p", () => {
-    const stdout = runPi([
-      ...piJsonArgs,
-      "Respond exactly PI_GROK_OK and nothing else.",
-    ]);
+    const stdout = runPi([...piJsonArgs, "Respond exactly PI_GROK_OK and nothing else."]);
 
     const events = stdout
       .split("\n")

@@ -25,13 +25,7 @@ export type GrokPermissionMode =
   | "plan";
 
 /** Reasoning effort for reasoning models (0.1.216 surface). */
-export type GrokReasoningEffort =
-  | "none"
-  | "minimal"
-  | "low"
-  | "medium"
-  | "high"
-  | "xhigh";
+export type GrokReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
 /** A single Grok streaming-json NDJSON message. */
 export interface GrokStreamEvent {

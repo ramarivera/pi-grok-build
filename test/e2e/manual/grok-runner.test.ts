@@ -1,19 +1,21 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { Effect } from "effect";
+import { isEndEvent, isErrorEvent, isTextEvent, parseGrokLine } from "../../../src/grok-parser.ts";
 import {
   buildGrokArgs,
-  getGrokVersion,
-  validateGrokPresence,
-  runGrokCommand,
-  runGrokModels,
-  runGrokInspect,
-  runGrokSessions,
-  runGrokMemory,
-  runGrokTrace,
-  parseGrokModelsOutput,
   detectGrokBinary,
+  detectGrokBinaryEffect,
+  getGrokVersion,
+  parseGrokModelsOutput,
+  runGrokCommand,
+  runGrokInspect,
+  runGrokMemory,
+  runGrokModels,
+  runGrokSessions,
+  runGrokTrace,
+  validateGrokPresence,
 } from "../../../src/grok-runner.ts";
-import { isEndEvent, isErrorEvent, isTextEvent, parseGrokLine } from "../../../src/grok-parser.ts";
 
 describe("buildGrokArgs", () => {
   it("builds minimal args", () => {
@@ -57,17 +59,26 @@ describe("buildGrokArgs", () => {
 
   it("adds effort", () => {
     const args = buildGrokArgs("hi", { effort: "high" });
-    assert.deepEqual(args.filter((_, i) => args[i - 1] === "--effort"), ["high"]);
+    assert.deepEqual(
+      args.filter((_, i) => args[i - 1] === "--effort"),
+      ["high"],
+    );
   });
 
   it("adds maxTurns", () => {
     const args = buildGrokArgs("hi", { maxTurns: 5 });
-    assert.deepEqual(args.filter((_, i) => args[i - 1] === "--max-turns"), ["5"]);
+    assert.deepEqual(
+      args.filter((_, i) => args[i - 1] === "--max-turns"),
+      ["5"],
+    );
   });
 
   it("adds reasoningEffort", () => {
     const args = buildGrokArgs("hi", { reasoningEffort: "medium" });
-    assert.deepEqual(args.filter((_, i) => args[i - 1] === "--reasoning-effort"), ["medium"]);
+    assert.deepEqual(
+      args.filter((_, i) => args[i - 1] === "--reasoning-effort"),
+      ["medium"],
+    );
   });
 
   it("adds check", () => {
@@ -112,12 +123,18 @@ describe("buildGrokArgs", () => {
 
   it("adds permissionMode", () => {
     const args = buildGrokArgs("hi", { permissionMode: "auto" });
-    assert.deepEqual(args.filter((_, i) => args[i - 1] === "--permission-mode"), ["auto"]);
+    assert.deepEqual(
+      args.filter((_, i) => args[i - 1] === "--permission-mode"),
+      ["auto"],
+    );
   });
 
   it("adds rules", () => {
     const args = buildGrokArgs("hi", { rules: "Be concise" });
-    assert.deepEqual(args.filter((_, i) => args[i - 1] === "--rules"), ["Be concise"]);
+    assert.deepEqual(
+      args.filter((_, i) => args[i - 1] === "--rules"),
+      ["Be concise"],
+    );
   });
 
   it("adds systemPromptOverride", () => {
@@ -130,7 +147,10 @@ describe("buildGrokArgs", () => {
 
   it("adds tools", () => {
     const args = buildGrokArgs("hi", { tools: "read,write" });
-    assert.deepEqual(args.filter((_, i) => args[i - 1] === "--tools"), ["read,write"]);
+    assert.deepEqual(
+      args.filter((_, i) => args[i - 1] === "--tools"),
+      ["read,write"],
+    );
   });
 
   it("adds disallowedTools", () => {
@@ -156,7 +176,10 @@ describe("buildGrokArgs", () => {
 
   it("adds sandbox", () => {
     const args = buildGrokArgs("hi", { sandbox: "strict" });
-    assert.deepEqual(args.filter((_, i) => args[i - 1] === "--sandbox"), ["strict"]);
+    assert.deepEqual(
+      args.filter((_, i) => args[i - 1] === "--sandbox"),
+      ["strict"],
+    );
   });
 
   it("adds restoreCode (0.1.216)", () => {
@@ -177,7 +200,10 @@ describe("buildGrokArgs", () => {
 
   it("supports expanded reasoningEffort values (0.1.216)", () => {
     const args = buildGrokArgs("hi", { reasoningEffort: "xhigh" });
-    assert.deepEqual(args.filter((_, i) => args[i - 1] === "--reasoning-effort"), ["xhigh"]);
+    assert.deepEqual(
+      args.filter((_, i) => args[i - 1] === "--reasoning-effort"),
+      ["xhigh"],
+    );
   });
 
   it("combines multiple flags in correct order", () => {
@@ -200,6 +226,11 @@ describe("buildGrokArgs", () => {
 describe("detectGrokBinary", () => {
   it("returns 'grok' when available", () => {
     const bin = detectGrokBinary();
+    assert.equal(bin, "grok");
+  });
+
+  it("has an Effect-modeled detection API", () => {
+    const bin = Effect.runSync(detectGrokBinaryEffect());
     assert.equal(bin, "grok");
   });
 });

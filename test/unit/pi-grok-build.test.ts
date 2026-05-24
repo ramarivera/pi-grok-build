@@ -1,13 +1,13 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 
 // Import directly from sub-modules that DON'T depend on pi-ai runtime.
 // (tsx can't resolve @earendil-works/pi-ai as CJS — Pi's SDK handles it at runtime.)
 import {
-  parseGrokLine,
-  isStreamEvent,
   isResultEvent,
+  isStreamEvent,
   isSystemEvent,
+  parseGrokLine,
 } from "../../src/grok-parser.ts";
 
 describe("GrokBuildOptions contract", () => {

@@ -6,44 +6,55 @@
  * and startup validation for CLI presence and authentication.
  */
 
-import spawn from "cross-spawn";
-import { execFileSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import type { GrokRunResult, GrokSpawnOptions, GrokModelDescriptor } from "./types.ts";
+import { execFileSync } from "node:child_process";
+import spawn from "cross-spawn";
+import { Effect } from "effect";
 import {
-  GrokCliError,
   classifyGrokFailure,
   createDiagnostics,
+  GrokCliError,
   redactGrokArgs,
 } from "./diagnostics.ts";
+import type { GrokModelDescriptor, GrokRunResult, GrokSpawnOptions } from "./types.ts";
 
 const GROK_BINARY = "grok";
 const diagnostics = createDiagnostics("grok-runner");
 
-/** Detect the installed grok binary on PATH only. */
-export function detectGrokBinary(): string {
-  try {
-    execFileSync(GROK_BINARY, ["--version"], { stdio: "pipe", timeout: 5000 });
-    return GROK_BINARY;
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    const diagnostic = classifyGrokFailure({ message });
-    diagnostics.debug("grok binary detection failed", () => ({ diagnostic }));
-    throw new GrokCliError({
+function toMissingGrokCliError(err: unknown): GrokCliError {
+  const message = err instanceof Error ? err.message : String(err);
+  const diagnostic = classifyGrokFailure({ message });
+  diagnostics.debug("grok binary detection failed", () => ({ diagnostic }));
+  return new GrokCliError(
+    {
       ...diagnostic,
       message: `${diagnostic.message} Original error: ${message}`,
-    }, { cause: err });
-  }
+    },
+    { cause: err },
+  );
+}
+
+/** Detect the installed grok binary on PATH only, modeled as a typed Effect. */
+export function detectGrokBinaryEffect(): Effect.Effect<string, GrokCliError> {
+  return Effect.try({
+    try: () => {
+      execFileSync(GROK_BINARY, ["--version"], { stdio: "pipe", timeout: 5000 });
+      return GROK_BINARY;
+    },
+    catch: toMissingGrokCliError,
+  });
+}
+
+/** Detect the installed grok binary on PATH only. */
+export function detectGrokBinary(): string {
+  return Effect.runSync(detectGrokBinaryEffect());
 }
 
 /**
  * Build the argument array for `grok -p` from GrokSpawnOptions.
  * Centralizes flag mapping so spawnGrok and tests share the same logic.
  */
-export function buildGrokArgs(
-  prompt: string,
-  options: GrokSpawnOptions,
-): string[] {
+export function buildGrokArgs(prompt: string, options: GrokSpawnOptions): string[] {
   const args: string[] = ["-p", prompt, "--output-format", "streaming-json"];
 
   if (options.modelId) {
@@ -176,10 +187,7 @@ export function buildGrokArgs(
  * @param options - Optional cwd, AbortSignal, model, session settings, and new headless flags
  * @returns The spawned ChildProcess with piped stdin/stdout/stderr
  */
-export function spawnGrok(
-  prompt: string,
-  options: GrokSpawnOptions = {},
-): ChildProcess {
+export function spawnGrok(prompt: string, options: GrokSpawnOptions = {}): ChildProcess {
   const binary = detectGrokBinary();
   const args = buildGrokArgs(prompt, options);
 
@@ -295,11 +303,8 @@ export function runGrokCommand(
     };
 
     const stdout =
-      typeof execErr.stdout === "string"
-        ? execErr.stdout
-        : execErr.stdout?.toString() ?? "";
-    const stderr =
-      execErr.stderr?.toString() ?? execErr.message ?? "Unknown error";
+      typeof execErr.stdout === "string" ? execErr.stdout : (execErr.stdout?.toString() ?? "");
+    const stderr = execErr.stderr?.toString() ?? execErr.message ?? "Unknown error";
 
     const diagnostic = classifyGrokFailure({
       message: execErr.message,
@@ -326,46 +331,35 @@ export function runGrokCommand(
  * Run `grok inspect` and return the parsed config.
  * Grok inspect shows discovered config, instructions, skills, plugins, hooks, MCP servers.
  */
-export function runGrokInspect(
-  options: { cwd?: string } = {},
-): GrokRunResult {
+export function runGrokInspect(options: { cwd?: string } = {}): GrokRunResult {
   return runGrokCommand(["inspect"], options);
 }
 
 /**
  * Run `grok models` and return available models.
  */
-export function runGrokModels(
-  options: { cwd?: string } = {},
-): GrokRunResult {
+export function runGrokModels(options: { cwd?: string } = {}): GrokRunResult {
   return runGrokCommand(["models"], options);
 }
 
 /**
  * Run `grok sessions` and return session list.
  */
-export function runGrokSessions(
-  options: { cwd?: string } = {},
-): GrokRunResult {
+export function runGrokSessions(options: { cwd?: string } = {}): GrokRunResult {
   return runGrokCommand(["sessions"], options);
 }
 
 /**
  * Run `grok memory` and return memory entries.
  */
-export function runGrokMemory(
-  options: { cwd?: string } = {},
-): GrokRunResult {
+export function runGrokMemory(options: { cwd?: string } = {}): GrokRunResult {
   return runGrokCommand(["memory"], options);
 }
 
 /**
  * Run `grok share` for the current or specified session.
  */
-export function runGrokShare(
-  sessionId?: string,
-  options: { cwd?: string } = {},
-): GrokRunResult {
+export function runGrokShare(sessionId?: string, options: { cwd?: string } = {}): GrokRunResult {
   const args = sessionId ? ["share", sessionId] : ["share"];
   return runGrokCommand(args, options);
 }
@@ -373,9 +367,7 @@ export function runGrokShare(
 /**
  * Run `grok trace` to export session trace data.
  */
-export function runGrokTrace(
-  options: { cwd?: string } = {},
-): GrokRunResult {
+export function runGrokTrace(options: { cwd?: string } = {}): GrokRunResult {
   return runGrokCommand(["trace"], options);
 }
 
@@ -421,7 +413,7 @@ export function parseGrokModelsOutput(stdout: string): GrokModelDescriptor[] {
     }
     // Match bullet-prefixed model lines: * model-id (optional meta)
     // or simple indented lines:   model-id   Display Name
-    const bulletMatch = line.match(/^[\s*\-]+([a-z0-9._\-]+)(?:\s+\(([^)]+)\))?\s*$/i);
+    const bulletMatch = line.match(/^[\s*-]+([a-z0-9._-]+)(?:\s+\(([^)]+)\))?\s*$/i);
     if (bulletMatch) {
       const id = bulletMatch[1]!;
       const meta = bulletMatch[2];
@@ -433,7 +425,7 @@ export function parseGrokModelsOutput(stdout: string): GrokModelDescriptor[] {
       continue;
     }
     // Fallback: tabular/space-separated lines
-    const tabMatch = line.match(/^\s*([a-z0-9._\-]+)\s+(.*?)\s*$/i);
+    const tabMatch = line.match(/^\s*([a-z0-9._-]+)\s+(.*?)\s*$/i);
     if (tabMatch) {
       const id = tabMatch[1]!;
       const name = tabMatch[2]!;

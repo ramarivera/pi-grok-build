@@ -1,12 +1,12 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import {
-  GROK_BUILD_PROVIDER_ID,
-  GROK_JSONL_INTEGRATION_MODE,
-  GROK_THINKING_LEVEL_MAP,
   buildGrokProviderModel,
   buildGrokProviderModels,
   fallbackGrokBuildModel,
+  GROK_BUILD_PROVIDER_ID,
+  GROK_JSONL_INTEGRATION_MODE,
+  GROK_THINKING_LEVEL_MAP,
 } from "../../src/model-metadata.ts";
 
 describe("Grok provider metadata", () => {
@@ -42,10 +42,10 @@ describe("Grok provider metadata", () => {
       { id: "grok-build", name: "grok-build" },
       { id: "kimi-k2p6-turbo-firepass", name: "kimi-k2p6-turbo-firepass" },
     ]);
-    assert.deepEqual(models.map((model) => model.id), [
-      "grok-build",
-      "kimi-k2p6-turbo-firepass",
-    ]);
+    assert.deepEqual(
+      models.map((model) => model.id),
+      ["grok-build", "kimi-k2p6-turbo-firepass"],
+    );
   });
 
   it("fallback model remains grok-build", () => {

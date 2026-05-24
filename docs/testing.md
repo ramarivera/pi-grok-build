@@ -4,6 +4,17 @@ The test layout is intentionally split by risk level.
 
 ## CI-safe suites
 
+Static checks:
+
+```bash
+npm run lint
+npm run format:check
+npm run check
+```
+
+`lint` runs Biome lint plus TypeScript typechecking. `format:check` verifies Biome formatting without writing. `check` runs Biome's combined formatter/linter/import organizer check plus typechecking.
+
+
 Run these before publishing or changing provider logic:
 
 ```bash

@@ -1,10 +1,6 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  buildGrokPrompt,
-  contextHasImages,
-  buildSpawnOptions,
-} from "../../src/provider.ts";
+import { describe, it } from "node:test";
+import { buildGrokPrompt, buildSpawnOptions, contextHasImages } from "../../src/provider.ts";
 
 describe("buildGrokPrompt", () => {
   it("builds prompt with user messages", () => {
@@ -49,9 +45,7 @@ describe("buildGrokPrompt", () => {
 
   it("handles image content as placeholder", () => {
     const result = buildGrokPrompt({
-      messages: [
-        { role: "user", content: [{ type: "image", data: "base64..." }] },
-      ],
+      messages: [{ role: "user", content: [{ type: "image", data: "base64..." }] }],
     });
     assert.ok(result.includes("[Image]"));
   });
@@ -73,9 +67,7 @@ describe("buildGrokPrompt", () => {
       messages: [
         {
           role: "assistant",
-          content: [
-            { type: "toolCall", name: "read", arguments: { path: "/tmp" } },
-          ],
+          content: [{ type: "toolCall", name: "read", arguments: { path: "/tmp" } }],
         },
       ],
     });

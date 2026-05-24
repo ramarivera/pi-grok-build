@@ -17,9 +17,7 @@ function getApiKey(): string | undefined {
 function apiHeaders(): Record<string, string> {
   const key = getApiKey();
   if (!key) {
-    throw new Error(
-      "xAI API key not found. Set GROK_CODE_XAI_API_KEY or XAI_API_KEY.",
-    );
+    throw new Error("xAI API key not found. Set GROK_CODE_XAI_API_KEY or XAI_API_KEY.");
   }
   return {
     Authorization: `Bearer ${key}`,
@@ -197,9 +195,7 @@ export async function speechToText(options: {
 
     const key = getApiKey();
     if (!key) {
-      throw new Error(
-        "xAI API key not found. Set GROK_CODE_XAI_API_KEY or XAI_API_KEY.",
-      );
+      throw new Error("xAI API key not found. Set GROK_CODE_XAI_API_KEY or XAI_API_KEY.");
     }
 
     const res = await fetch(`${XAI_BASE_URL}/v1/stt`, {

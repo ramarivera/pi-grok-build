@@ -36,14 +36,7 @@ export class GrokCliError extends Error {
 }
 
 const DEFAULT_LEVEL: GrokDiagnosticLevel = "error";
-const LEVELS = new Set<GrokDiagnosticLevel>([
-  "silent",
-  "error",
-  "warn",
-  "info",
-  "debug",
-  "trace",
-]);
+const LEVELS = new Set<GrokDiagnosticLevel>(["silent", "error", "warn", "info", "debug", "trace"]);
 
 function readDiagnosticLevel(): GrokDiagnosticLevel {
   const raw = process.env.PI_GROK_BUILD_LOG_LEVEL?.toLowerCase();
@@ -118,7 +111,11 @@ export function classifyGrokFailure(input: {
   const combined = [input.message, input.stderr, input.stdout].filter(Boolean).join("\n");
   const lower = combined.toLowerCase();
 
-  if (lower.includes("enoent") || lower.includes("not found on path") || lower.includes("command not found")) {
+  if (
+    lower.includes("enoent") ||
+    lower.includes("not found on path") ||
+    lower.includes("command not found")
+  ) {
     return {
       kind: "missing_cli",
       message:
@@ -129,7 +126,10 @@ export function classifyGrokFailure(input: {
     };
   }
 
-  if (lower.includes("unknown model id") || lower.includes("model") && lower.includes("not found")) {
+  if (
+    lower.includes("unknown model id") ||
+    (lower.includes("model") && lower.includes("not found"))
+  ) {
     return {
       kind: "invalid_model",
       message: combined || "Grok CLI rejected the selected model.",
@@ -142,7 +142,8 @@ export function classifyGrokFailure(input: {
   if (lower.includes("auth") || lower.includes("login") || lower.includes("unauthorized")) {
     return {
       kind: "auth",
-      message: combined || "Grok CLI is not authenticated. Run `grok` once interactively to authenticate.",
+      message:
+        combined || "Grok CLI is not authenticated. Run `grok` once interactively to authenticate.",
       exitCode: input.exitCode,
       stderr: input.stderr,
       stdout: input.stdout,

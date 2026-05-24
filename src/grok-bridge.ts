@@ -7,7 +7,6 @@
  * the final AssistantMessage.
  */
 
-import { calculateCost } from "@earendil-works/pi-ai";
 import type {
   AssistantMessage,
   AssistantMessageEventStream,
@@ -16,10 +15,11 @@ import type {
   ThinkingContent,
   ToolCall,
 } from "@earendil-works/pi-ai";
+import { calculateCost } from "@earendil-works/pi-ai";
 import type {
-  GrokStreamEvent,
   GrokContentBlock,
   GrokDelta,
+  GrokStreamEvent,
   TrackedBlock,
   TrackedContentBlock,
   TrackedToolBlock,
@@ -34,17 +34,13 @@ export interface GrokEventBridge {
 /**
  * Map Grok stop reasons to Pi's stop reason format.
  */
-function mapStopReason(
-  reason: string | undefined,
-): "stop" | "length" | "toolUse" {
+function mapStopReason(reason: string | undefined): "stop" | "length" | "toolUse" {
   switch (reason) {
     case "tool_use":
       return "toolUse";
     case "max_tokens":
     case "length":
       return "length";
-    case "end_turn":
-    case "stop":
     default:
       return "stop";
   }
@@ -215,9 +211,7 @@ export function createGrokEventBridge(
     const deltaType = delta.type;
 
     if (deltaType === "text_delta" && delta.text != null) {
-      const existing = blocks.findIndex(
-        (b) => b.index === index && b.type === "text",
-      );
+      const existing = blocks.findIndex((b) => b.index === index && b.type === "text");
       if (existing >= 0) {
         const block = blocks[existing] as TrackedContentBlock;
         block.text += delta.text;
@@ -252,9 +246,7 @@ export function createGrokEventBridge(
         });
       }
     } else if (deltaType === "thinking_delta" && delta.thinking != null) {
-      const existing = blocks.findIndex(
-        (b) => b.index === index && b.type === "thinking",
-      );
+      const existing = blocks.findIndex((b) => b.index === index && b.type === "thinking");
       if (existing >= 0) {
         const block = blocks[existing] as TrackedContentBlock;
         block.text += delta.thinking;
@@ -292,9 +284,7 @@ export function createGrokEventBridge(
         });
       }
     } else if (deltaType === "input_json_delta" && delta.partial_json != null) {
-      const existing = blocks.findIndex(
-        (b) => b.index === index && b.type === "tool_use",
-      );
+      const existing = blocks.findIndex((b) => b.index === index && b.type === "tool_use");
       if (existing >= 0) {
         const block = blocks[existing] as TrackedToolBlock;
         block.partialJson += delta.partial_json;
@@ -364,10 +354,7 @@ export function createGrokEventBridge(
     }
 
     output.usage.totalTokens =
-      output.usage.input +
-      output.usage.output +
-      output.usage.cacheRead +
-      output.usage.cacheWrite;
+      output.usage.input + output.usage.output + output.usage.cacheRead + output.usage.cacheWrite;
     calculateCost(model, output.usage);
   }
 

@@ -1,93 +1,90 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import {
-  createGrokBuildExtension,
-  type GrokBuildOptions,
-} from "./extension.ts";
+import { createGrokBuildExtension, type GrokBuildOptions } from "./extension.ts";
 
-export type { GrokBuildOptions };
-export { createGrokBuildExtension };
-
-export { streamViaGrok, buildGrokPrompt, contextHasImages, buildSpawnOptions } from "./provider.ts";
+export type { GrokDiagnosticLevel, GrokFailureDiagnostic, GrokFailureKind } from "./diagnostics.ts";
 export {
-  spawnGrok,
-  runGrokCommand,
-  runGrokInspect,
-  runGrokModels,
-  runGrokSessions,
-  runGrokMemory,
-  runGrokShare,
-  runGrokTrace,
-  validateGrokPresence,
-  validateGrokAuth,
-  getGrokVersion,
-  detectGrokBinary,
-  buildGrokArgs,
-  registerProcess,
-  forceKillProcess,
-  killAllProcesses,
-  captureStderr,
-  parseGrokModelsOutput,
-} from "./grok-runner.ts";
+  classifyGrokFailure,
+  createDiagnostics,
+  formatGrokFailure,
+  GrokCliError,
+  redactGrokArgs,
+} from "./diagnostics.ts";
 export { createGrokEventBridge } from "./grok-bridge.ts";
 export {
+  isEndEvent,
+  isErrorEvent,
+  isResultEvent,
+  isStreamEvent,
+  isSystemEvent,
+  isTextEvent,
+  isThoughtEvent,
+  parseGrokLine,
+} from "./grok-parser.ts";
+export {
+  buildGrokArgs,
+  captureStderr,
+  detectGrokBinary,
+  detectGrokBinaryEffect,
+  forceKillProcess,
+  getGrokVersion,
+  killAllProcesses,
+  parseGrokModelsOutput,
+  registerProcess,
+  runGrokCommand,
+  runGrokInspect,
+  runGrokMemory,
+  runGrokModels,
+  runGrokSessions,
+  runGrokShare,
+  runGrokTrace,
+  spawnGrok,
+  validateGrokAuth,
+  validateGrokPresence,
+} from "./grok-runner.ts";
+export {
+  buildGrokProviderModel,
+  buildGrokProviderModels,
+  fallbackGrokBuildModel,
   GROK_BUILD_PROVIDER_ID,
   GROK_JSONL_INTEGRATION_MODE,
   GROK_PROVIDER_MODEL_DEFAULTS,
   GROK_THINKING_LEVEL_MAP,
-  buildGrokProviderModel,
-  buildGrokProviderModels,
-  fallbackGrokBuildModel,
 } from "./model-metadata.ts";
-export {
-  GrokCliError,
-  classifyGrokFailure,
-  createDiagnostics,
-  formatGrokFailure,
-  redactGrokArgs,
-} from "./diagnostics.ts";
-export type { GrokDiagnosticLevel, GrokFailureDiagnostic, GrokFailureKind } from "./diagnostics.ts";
-export {
-  parseGrokLine,
-  isStreamEvent,
-  isResultEvent,
-  isSystemEvent,
-  isErrorEvent,
-  isTextEvent,
-  isThoughtEvent,
-  isEndEvent,
-} from "./grok-parser.ts";
-export {
-  imagineImage,
-  imagineVideo,
-  textToSpeech,
-  speechToText,
-} from "./xai-api.ts";
+export { buildGrokPrompt, buildSpawnOptions, contextHasImages, streamViaGrok } from "./provider.ts";
 export type {
-  ImagineImageResult,
-  ImagineVideoResult,
-  TtsResult,
-  SttResult,
-} from "./xai-api.ts";
-export type {
-  GrokNdjsonMessage,
-  GrokStreamEvent,
-  GrokResultEvent,
-  GrokSystemEvent,
+  GrokEffortLevel,
+  GrokEndEvent,
   GrokErrorEvent,
+  GrokModelDescriptor,
+  GrokNdjsonMessage,
+  GrokPermissionMode,
+  GrokReasoningEffort,
+  GrokResultEvent,
+  GrokRunResult,
+  GrokSessionDescriptor,
+  GrokSpawnOptions,
+  GrokStreamEvent,
+  GrokSystemEvent,
   GrokTextEvent,
   GrokThoughtEvent,
-  GrokEndEvent,
-  GrokRunResult,
   TrackedBlock,
   TrackedContentBlock,
   TrackedToolBlock,
-  GrokSpawnOptions,
-  GrokEffortLevel,
-  GrokPermissionMode,
-  GrokReasoningEffort,
-  GrokModelDescriptor,
-  GrokSessionDescriptor,
 } from "./types.ts";
+export type {
+  ImagineImageResult,
+  ImagineVideoResult,
+  SttResult,
+  TtsResult,
+} from "./xai-api.ts";
+export {
+  imagineImage,
+  imagineVideo,
+  speechToText,
+  textToSpeech,
+} from "./xai-api.ts";
+export type { GrokBuildOptions };
+export { createGrokBuildExtension };
 
 export default function piGrokBuildExtension(pi: ExtensionAPI): void {
   createGrokBuildExtension().register(pi);

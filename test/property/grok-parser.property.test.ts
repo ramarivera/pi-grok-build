@@ -4,8 +4,8 @@ import fc from "fast-check";
 import {
   isEndEvent,
   isErrorEvent,
-  isThoughtEvent,
   isTextEvent,
+  isThoughtEvent,
   parseGrokLine,
 } from "../../src/grok-parser.ts";
 import { buildGrokArgs, parseGrokModelsOutput } from "../../src/grok-runner.ts";

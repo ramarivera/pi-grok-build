@@ -135,7 +135,7 @@ describe("pi-grok-build e2e — real grok CLI integration", () => {
         }
       });
 
-      proc.on("close", (code) => {
+      proc.on("close", () => {
         clearTimeout(timer);
         resolve();
       });
@@ -353,10 +353,10 @@ describe("pi-grok-build e2e — extension registration mock", () => {
     // Note: we can't easily invoke the tool here without the Pi SDK,
     // but we verify the tool schema accepts the expected parameters
     assert.ok(capturedArgs === undefined); // execute wasn't called during registration
+    assert.ok(capturedCwd === undefined);
   });
 
   it("grok_models tool parses real CLI output", async () => {
-    const { createGrokBuildExtension } = await import("../../../src/extension.ts");
     const { runGrokModels, parseGrokModelsOutput } = await import("../../../src/grok-runner.ts");
 
     const result = runGrokModels();

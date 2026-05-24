@@ -22,9 +22,7 @@ export const GROK_PROVIDER_MODEL_DEFAULTS = {
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 } satisfies Omit<ProviderModelConfig, "id" | "name">;
 
-export function buildGrokProviderModel(
-  descriptor: GrokModelDescriptor,
-): ProviderModelConfig {
+export function buildGrokProviderModel(descriptor: GrokModelDescriptor): ProviderModelConfig {
   return {
     id: descriptor.id,
     name: descriptor.name,
