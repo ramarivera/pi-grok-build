@@ -1,223 +1,207 @@
 /**
- * xAI REST API client for Imagine and Voice capabilities.
+ * xAI Imagine REST API client for image and video generation.
  *
- * These APIs are separate from the Grok Build CLI and use the
- * xAI platform endpoints (api.x.ai). They require an API key
- * via GROK_CODE_XAI_API_KEY or XAI_API_KEY.
+ * These APIs are separate from the local Grok Build CLI. They require an xAI
+ * platform API key via XAI_API_KEY or GROK_CODE_XAI_API_KEY; the extension does
+ * not read or reuse private Grok CLI cached tokens from ~/.grok.
+ *
+ * Evidence: xAI docs for /v1/images/generations and /v1/videos/generations.
  */
 
-import { readFileSync } from "node:fs";
-
 const XAI_BASE_URL = "https://api.x.ai";
+export const DEFAULT_IMAGE_MODEL = "grok-imagine-image-quality";
+export const DEFAULT_VIDEO_MODEL = "grok-imagine-video";
 
-function getApiKey(): string | undefined {
-  return process.env.GROK_CODE_XAI_API_KEY || process.env.XAI_API_KEY;
+export function getXaiApiKey(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return env.XAI_API_KEY || env.GROK_CODE_XAI_API_KEY;
 }
 
-function apiHeaders(): Record<string, string> {
-  const key = getApiKey();
+function requireApiKey(): string {
+  const key = getXaiApiKey();
   if (!key) {
-    throw new Error("xAI API key not found. Set GROK_CODE_XAI_API_KEY or XAI_API_KEY.");
+    throw new Error("xAI API key not found. Set XAI_API_KEY or GROK_CODE_XAI_API_KEY.");
   }
+  return key;
+}
+
+function jsonHeaders(): Record<string, string> {
   return {
-    Authorization: `Bearer ${key}`,
+    Authorization: `Bearer ${requireApiKey()}`,
     "Content-Type": "application/json",
   };
+}
+
+async function readError(res: Response): Promise<string> {
+  const text = await res.text();
+  return `HTTP ${res.status}: ${text}`;
 }
 
 /** Result of an image generation request. */
 export interface ImagineImageResult {
   ok: boolean;
-  images: Array<{ url: string; revised_prompt?: string }>;
+  images: Array<{ url?: string; b64_json?: string; revised_prompt?: string }>;
   error?: string;
 }
 
-/** Generate images from a text prompt. */
+/** Generate images from a text prompt using the documented xAI Imagine image endpoint. */
 export async function imagineImage(options: {
   prompt: string;
   model?: string;
   n?: number;
   aspect_ratio?: string;
-  resolution?: string;
+  resolution?: "1k" | "2k" | string;
+  response_format?: "url" | "b64_json";
 }): Promise<ImagineImageResult> {
   try {
     const res = await fetch(`${XAI_BASE_URL}/v1/images/generations`, {
       method: "POST",
-      headers: apiHeaders(),
+      headers: jsonHeaders(),
       body: JSON.stringify({
+        model: options.model ?? DEFAULT_IMAGE_MODEL,
         prompt: options.prompt,
-        model: options.model ?? "grok-2-image",
-        n: options.n ?? 1,
+        ...(options.n !== undefined ? { n: options.n } : {}),
+        ...(options.aspect_ratio ? { aspect_ratio: options.aspect_ratio } : {}),
+        ...(options.resolution ? { resolution: options.resolution } : {}),
+        ...(options.response_format ? { response_format: options.response_format } : {}),
+      }),
+    });
+
+    if (!res.ok) return { ok: false, images: [], error: await readError(res) };
+
+    const data = (await res.json()) as {
+      data?: Array<{ url?: string; b64_json?: string; revised_prompt?: string }>;
+    };
+    return { ok: true, images: data.data ?? [] };
+  } catch (err: unknown) {
+    return { ok: false, images: [], error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export type VideoGenerationStatus = "pending" | "done" | "expired" | "failed" | string;
+
+export interface StartVideoGenerationResult {
+  ok: boolean;
+  request_id?: string;
+  error?: string;
+}
+
+export interface PollVideoGenerationResult {
+  ok: boolean;
+  status?: VideoGenerationStatus;
+  video?: { url?: string; duration?: number; respect_moderation?: boolean };
+  model?: string;
+  error?: string;
+}
+
+/** Start text-to-video or image-to-video generation using the documented xAI endpoint. */
+export async function startVideoGeneration(options: {
+  prompt: string;
+  model?: string;
+  image?: string;
+  duration?: number;
+  aspect_ratio?: string;
+  resolution?: "480p" | "720p" | string;
+}): Promise<StartVideoGenerationResult> {
+  try {
+    const res = await fetch(`${XAI_BASE_URL}/v1/videos/generations`, {
+      method: "POST",
+      headers: jsonHeaders(),
+      body: JSON.stringify({
+        model: options.model ?? DEFAULT_VIDEO_MODEL,
+        prompt: options.prompt,
+        ...(options.image ? { image: options.image } : {}),
+        ...(options.duration !== undefined ? { duration: options.duration } : {}),
         ...(options.aspect_ratio ? { aspect_ratio: options.aspect_ratio } : {}),
         ...(options.resolution ? { resolution: options.resolution } : {}),
       }),
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      return { ok: false, images: [], error: `HTTP ${res.status}: ${text}` };
-    }
+    if (!res.ok) return { ok: false, error: await readError(res) };
 
-    const data = (await res.json()) as {
-      data?: Array<{ url: string; revised_prompt?: string }>;
-    };
-    return { ok: true, images: data.data ?? [] };
+    const data = (await res.json()) as { request_id?: string };
+    if (!data.request_id)
+      return { ok: false, error: "xAI video response did not include request_id." };
+    return { ok: true, request_id: data.request_id };
   } catch (err: unknown) {
-    return {
-      ok: false,
-      images: [],
-      error: err instanceof Error ? err.message : String(err),
-    };
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
 
-/** Result of a video generation request. */
-export interface ImagineVideoResult {
-  ok: boolean;
-  url?: string | undefined;
-  request_id?: string | undefined;
-  error?: string;
+/** Poll a video generation request using the documented xAI status endpoint. */
+export async function pollVideoGeneration(requestId: string): Promise<PollVideoGenerationResult> {
+  try {
+    const res = await fetch(`${XAI_BASE_URL}/v1/videos/${encodeURIComponent(requestId)}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${requireApiKey()}` },
+    });
+
+    if (!res.ok) return { ok: false, error: await readError(res) };
+
+    const data = (await res.json()) as {
+      status?: VideoGenerationStatus;
+      video?: { url?: string; duration?: number; respect_moderation?: boolean };
+      model?: string;
+      error?: { code?: string; message?: string };
+    };
+
+    if (data.status === "failed") {
+      return {
+        ok: false,
+        status: data.status,
+        ...(data.model ? { model: data.model } : {}),
+        error: data.error?.message ?? data.error?.code ?? "xAI video generation failed.",
+      };
+    }
+
+    return {
+      ok: true,
+      ...(data.status ? { status: data.status } : {}),
+      ...(data.video ? { video: data.video } : {}),
+      ...(data.model ? { model: data.model } : {}),
+    };
+  } catch (err: unknown) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
-/** Generate video from text or image. */
+/** Generate a video and optionally poll until completion. */
 export async function imagineVideo(options: {
   prompt: string;
   model?: string;
-  image_url?: string;
+  image?: string;
   duration?: number;
   aspect_ratio?: string;
-  resolution?: string;
-}): Promise<ImagineVideoResult> {
-  try {
-    const body: Record<string, unknown> = {
-      prompt: options.prompt,
-      model: options.model ?? "grok-2-video",
-      ...(options.duration ? { duration: options.duration } : {}),
-      ...(options.aspect_ratio ? { aspect_ratio: options.aspect_ratio } : {}),
-      ...(options.resolution ? { resolution: options.resolution } : {}),
-    };
-    if (options.image_url) {
-      body.image_url = options.image_url;
-    }
-
-    const res = await fetch(`${XAI_BASE_URL}/v1/video-generations`, {
-      method: "POST",
-      headers: apiHeaders(),
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      return { ok: false, error: `HTTP ${res.status}: ${text}` };
-    }
-
-    const data = (await res.json()) as {
-      url?: string;
-      request_id?: string;
-    };
-    return { ok: true, url: data.url ?? undefined, request_id: data.request_id ?? undefined };
-  } catch (err: unknown) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
+  resolution?: "480p" | "720p" | string;
+  poll?: boolean;
+  pollIntervalMs?: number;
+  pollTimeoutMs?: number;
+}): Promise<PollVideoGenerationResult & { request_id?: string }> {
+  const started = await startVideoGeneration(options);
+  if (!started.ok || !started.request_id) {
+    return { ok: false, error: started.error ?? "xAI video generation did not start." };
   }
-}
 
-/** Result of a text-to-speech request. */
-export interface TtsResult {
-  ok: boolean;
-  audioBase64?: string;
-  error?: string;
-}
-
-/** Convert text to speech. */
-export async function textToSpeech(options: {
-  text: string;
-  voice_id?: string;
-  language?: string;
-  format?: string;
-}): Promise<TtsResult> {
-  try {
-    const res = await fetch(`${XAI_BASE_URL}/v1/tts`, {
-      method: "POST",
-      headers: apiHeaders(),
-      body: JSON.stringify({
-        text: options.text,
-        voice_id: options.voice_id ?? "eve",
-        language: options.language ?? "en",
-        ...(options.format ? { format: options.format } : {}),
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      return { ok: false, error: `HTTP ${res.status}: ${text}` };
-    }
-
-    const buffer = await res.arrayBuffer();
-    const audioBase64 = Buffer.from(buffer).toString("base64");
-    return { ok: true, audioBase64 };
-  } catch (err: unknown) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
+  if (options.poll === false) {
+    return { ok: true, status: "pending", request_id: started.request_id };
   }
-}
 
-/** Result of a speech-to-text request. */
-export interface SttResult {
-  ok: boolean;
-  text?: string | undefined;
-  error?: string;
-}
+  const intervalMs = options.pollIntervalMs ?? 5_000;
+  const timeoutMs = options.pollTimeoutMs ?? 10 * 60_000;
+  const deadline = Date.now() + timeoutMs;
 
-/** Transcribe audio to text. Accepts a file path or base64 data. */
-export async function speechToText(options: {
-  filePath?: string;
-  base64Data?: string;
-  mimeType?: string;
-}): Promise<SttResult> {
-  try {
-    let body: Buffer;
-    let contentType: string;
-
-    if (options.filePath) {
-      body = readFileSync(options.filePath);
-      contentType = options.mimeType ?? "audio/mpeg";
-    } else if (options.base64Data) {
-      body = Buffer.from(options.base64Data, "base64");
-      contentType = options.mimeType ?? "audio/mpeg";
-    } else {
-      return { ok: false, error: "Provide filePath or base64Data" };
+  while (Date.now() <= deadline) {
+    const polled = await pollVideoGeneration(started.request_id);
+    if (!polled.ok) return { ...polled, request_id: started.request_id };
+    if (polled.status === "done" || polled.status === "expired" || polled.status === "failed") {
+      return { ...polled, request_id: started.request_id };
     }
-
-    const key = getApiKey();
-    if (!key) {
-      throw new Error("xAI API key not found. Set GROK_CODE_XAI_API_KEY or XAI_API_KEY.");
-    }
-
-    const res = await fetch(`${XAI_BASE_URL}/v1/stt`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": contentType,
-      },
-      body: new Uint8Array(body),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      return { ok: false, error: `HTTP ${res.status}: ${text}` };
-    }
-
-    const data = (await res.json()) as { text?: string };
-    return { ok: true, text: data.text ?? undefined };
-  } catch (err: unknown) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
+
+  return {
+    ok: false,
+    status: "pending",
+    request_id: started.request_id,
+    error: `Timed out waiting for xAI video generation after ${timeoutMs}ms.`,
+  };
 }

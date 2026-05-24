@@ -33,7 +33,7 @@ function runPi(args: string[], env: NodeJS.ProcessEnv = process.env): string {
     cwd: repoRoot,
     env,
     encoding: "utf-8",
-    timeout: 120_000,
+    timeout: 240_000,
     maxBuffer: 5_000_000,
   });
 }

@@ -3,7 +3,7 @@
  *
  * Provides:
  * 1. LLM Provider — routes inference through Grok Build CLI
- * 2. Tools — grok_inspect, grok_run, grok_models, grok_sessions, grok_share, grok_memory
+ * 2. Tools — Grok CLI diagnostics plus xAI Imagine tools when XAI_API_KEY is configured
  * 3. Command — /grok for CLI status, inspection, models, sessions, and more
  */
 
@@ -34,7 +34,7 @@ import {
 } from "./model-metadata.ts";
 import { streamViaGrok } from "./provider.ts";
 import type { GrokRunResult } from "./types.ts";
-import { imagineImage, imagineVideo, speechToText, textToSpeech } from "./xai-api.ts";
+import { getXaiApiKey, imagineImage, imagineVideo, pollVideoGeneration } from "./xai-api.ts";
 
 // Kill all active Grok subprocesses on exit to prevent orphans
 process.on("exit", killAllProcesses);
@@ -64,10 +64,13 @@ const SESSION_SCHEMA = Type.Object(
 const IMAGINE_IMAGE_SCHEMA = Type.Object(
   {
     prompt: Type.String({ description: "Text prompt describing the image to generate" }),
-    model: Type.Optional(Type.String({ description: "Model ID, e.g. grok-2-image" })),
-    n: Type.Optional(Type.Number({ description: "Number of images (1-10)" })),
-    aspect_ratio: Type.Optional(Type.String({ description: "Aspect ratio, e.g. 16:9" })),
-    resolution: Type.Optional(Type.String({ description: "Resolution, e.g. 1024x1024" })),
+    model: Type.Optional(
+      Type.String({ description: "Model ID; defaults to grok-imagine-image-quality" }),
+    ),
+    n: Type.Optional(Type.Number({ description: "Number of images" })),
+    aspect_ratio: Type.Optional(Type.String({ description: "Aspect ratio, e.g. 16:9 or 1:1" })),
+    resolution: Type.Optional(Type.String({ description: "Resolution: 1k or 2k" })),
+    response_format: Type.Optional(Type.String({ description: "url or b64_json" })),
   },
   { additionalProperties: false },
 );
@@ -75,32 +78,27 @@ const IMAGINE_IMAGE_SCHEMA = Type.Object(
 const IMAGINE_VIDEO_SCHEMA = Type.Object(
   {
     prompt: Type.String({ description: "Text prompt describing the video to generate" }),
-    model: Type.Optional(Type.String({ description: "Model ID, e.g. grok-2-video" })),
-    image_url: Type.Optional(
-      Type.String({ description: "Optional source image URL or base64 data URI" }),
+    model: Type.Optional(Type.String({ description: "Model ID; defaults to grok-imagine-video" })),
+    image: Type.Optional(
+      Type.String({ description: "Optional image URL/base64 for image-to-video" }),
     ),
-    duration: Type.Optional(Type.Number({ description: "Duration in seconds (up to 15)" })),
+    duration: Type.Optional(Type.Number({ description: "Duration in seconds (1-15)" })),
     aspect_ratio: Type.Optional(Type.String({ description: "Aspect ratio, e.g. 16:9" })),
-    resolution: Type.Optional(Type.String({ description: "Resolution, e.g. 720p" })),
+    resolution: Type.Optional(Type.String({ description: "Resolution: 480p or 720p" })),
+    poll: Type.Optional(
+      Type.Boolean({
+        description: "Poll until completion; defaults true. Set false to return request_id.",
+      }),
+    ),
+    pollIntervalMs: Type.Optional(Type.Number({ description: "Polling interval in milliseconds" })),
+    pollTimeoutMs: Type.Optional(Type.Number({ description: "Polling timeout in milliseconds" })),
   },
   { additionalProperties: false },
 );
 
-const TTS_SCHEMA = Type.Object(
+const VIDEO_STATUS_SCHEMA = Type.Object(
   {
-    text: Type.String({ description: "Text to convert to speech" }),
-    voice_id: Type.Optional(Type.String({ description: "Voice: eve, ara, rex, sal, leo" })),
-    language: Type.Optional(Type.String({ description: "Language code, e.g. en" })),
-    format: Type.Optional(Type.String({ description: "Output format, e.g. mp3" })),
-  },
-  { additionalProperties: false },
-);
-
-const STT_SCHEMA = Type.Object(
-  {
-    filePath: Type.Optional(Type.String({ description: "Path to audio file" })),
-    base64Data: Type.Optional(Type.String({ description: "Base64-encoded audio data" })),
-    mimeType: Type.Optional(Type.String({ description: "MIME type of audio, e.g. audio/mpeg" })),
+    request_id: Type.String({ description: "xAI video generation request_id" }),
   },
   { additionalProperties: false },
 );
@@ -410,7 +408,7 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
 
         const imagineImageTool: ToolDefinition<
           typeof IMAGINE_IMAGE_SCHEMA,
-          { images: Array<{ url: string; revised_prompt?: string }> },
+          { images: Array<{ url?: string; b64_json?: string; revised_prompt?: string }> },
           unknown
         > = {
           name: `${toolNamePrefix}grok_imagine_image`,
@@ -418,7 +416,15 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
           description: "Generate images from a text prompt using the xAI Imagine API.",
           parameters: IMAGINE_IMAGE_SCHEMA,
           async execute(_toolCallId, params) {
-            const result = await imagineImage(params);
+            const imageOptions: Parameters<typeof imagineImage>[0] = { prompt: params.prompt };
+            if (params.model !== undefined) imageOptions.model = params.model;
+            if (params.n !== undefined) imageOptions.n = params.n;
+            if (params.aspect_ratio !== undefined) imageOptions.aspect_ratio = params.aspect_ratio;
+            if (params.resolution !== undefined) imageOptions.resolution = params.resolution;
+            if (params.response_format === "url" || params.response_format === "b64_json") {
+              imageOptions.response_format = params.response_format;
+            }
+            const result = await imagineImage(imageOptions);
             return {
               content: [
                 {
@@ -437,18 +443,19 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
 
         const imagineVideoTool: ToolDefinition<
           typeof IMAGINE_VIDEO_SCHEMA,
-          { url?: string; request_id?: string },
+          { video?: { url?: string; duration?: number }; request_id?: string; status?: string },
           unknown
         > = {
           name: `${toolNamePrefix}grok_imagine_video`,
           label: "Grok Imagine Video",
-          description: "Generate video from text or an image using the xAI Imagine API.",
+          description: "Generate video from text or an image using the documented xAI Imagine API.",
           parameters: IMAGINE_VIDEO_SCHEMA,
           async execute(_toolCallId, params) {
             const result = await imagineVideo(params);
             const details: Record<string, unknown> = {};
-            if (result.url !== undefined) details.url = result.url;
+            if (result.video !== undefined) details.video = result.video;
             if (result.request_id !== undefined) details.request_id = result.request_id;
+            if (result.status !== undefined) details.status = result.status;
             return {
               content: [
                 {
@@ -456,7 +463,8 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
                   text: JSON.stringify(
                     {
                       ok: result.ok,
-                      url: result.url,
+                      status: result.status,
+                      video: result.video,
                       request_id: result.request_id,
                       error: result.error,
                     },
@@ -470,15 +478,20 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
           },
         };
 
-        const ttsTool: ToolDefinition<typeof TTS_SCHEMA, { audioBase64?: string }, unknown> = {
-          name: `${toolNamePrefix}grok_tts`,
-          label: "Grok TTS",
-          description: "Convert text to speech using the xAI Voice API.",
-          parameters: TTS_SCHEMA,
+        const videoStatusTool: ToolDefinition<
+          typeof VIDEO_STATUS_SCHEMA,
+          { video?: { url?: string; duration?: number }; status?: string },
+          unknown
+        > = {
+          name: `${toolNamePrefix}grok_imagine_video_status`,
+          label: "Grok Imagine Video Status",
+          description: "Poll an xAI Imagine video generation request by request_id.",
+          parameters: VIDEO_STATUS_SCHEMA,
           async execute(_toolCallId, params) {
-            const result = await textToSpeech(params);
+            const result = await pollVideoGeneration(params.request_id);
             const details: Record<string, unknown> = {};
-            if (result.audioBase64 !== undefined) details.audioBase64 = result.audioBase64;
+            if (result.video !== undefined) details.video = result.video;
+            if (result.status !== undefined) details.status = result.status;
             return {
               content: [
                 {
@@ -486,35 +499,11 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
                   text: JSON.stringify(
                     {
                       ok: result.ok,
-                      audioLength: result.audioBase64?.length ?? 0,
+                      status: result.status,
+                      video: result.video,
+                      model: result.model,
                       error: result.error,
                     },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              details,
-            };
-          },
-        };
-
-        const sttTool: ToolDefinition<typeof STT_SCHEMA, { text?: string }, unknown> = {
-          name: `${toolNamePrefix}grok_stt`,
-          label: "Grok STT",
-          description:
-            "Transcribe audio to text using the xAI Voice API. Provide filePath or base64Data.",
-          parameters: STT_SCHEMA,
-          async execute(_toolCallId, params) {
-            const result = await speechToText(params);
-            const details: Record<string, unknown> = {};
-            if (result.text !== undefined) details.text = result.text;
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    { ok: result.ok, text: result.text, error: result.error },
                     null,
                     2,
                   ),
@@ -530,10 +519,11 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
         pi.registerTool(modelsTool);
         pi.registerTool(sessionsTool);
         pi.registerTool(memoryTool);
-        pi.registerTool(imagineImageTool);
-        pi.registerTool(imagineVideoTool);
-        pi.registerTool(ttsTool);
-        pi.registerTool(sttTool);
+        if (getXaiApiKey()) {
+          pi.registerTool(imagineImageTool);
+          pi.registerTool(imagineVideoTool);
+          pi.registerTool(videoStatusTool);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         diagnostics.error("failed to register extension", () => ({

@@ -93,22 +93,23 @@ test("Pi SDK exposes pi-grok-build commands and tools through live runtime", asy
       toolNames.includes("local_grok_memory"),
       "expected local_grok_memory tool to be registered",
     );
-    assert.ok(
+    assert.equal(
       toolNames.includes("local_grok_imagine_image"),
-      "expected local_grok_imagine_image tool to be registered",
+      Boolean(process.env.XAI_API_KEY || process.env.GROK_CODE_XAI_API_KEY),
+      "local_grok_imagine_image should only be registered when an xAI API key is configured",
     );
-    assert.ok(
+    assert.equal(
       toolNames.includes("local_grok_imagine_video"),
-      "expected local_grok_imagine_video tool to be registered",
+      Boolean(process.env.XAI_API_KEY || process.env.GROK_CODE_XAI_API_KEY),
+      "local_grok_imagine_video should only be registered when an xAI API key is configured",
     );
-    assert.ok(
-      toolNames.includes("local_grok_tts"),
-      "expected local_grok_tts tool to be registered",
+    assert.equal(
+      toolNames.includes("local_grok_imagine_video_status"),
+      Boolean(process.env.XAI_API_KEY || process.env.GROK_CODE_XAI_API_KEY),
+      "local_grok_imagine_video_status should only be registered when an xAI API key is configured",
     );
-    assert.ok(
-      toolNames.includes("local_grok_stt"),
-      "expected local_grok_stt tool to be registered",
-    );
+    assert.equal(toolNames.includes("local_grok_tts"), false);
+    assert.equal(toolNames.includes("local_grok_stt"), false);
 
     // Execute grok_inspect tool live
     const inspectTool = session.extensionRunner.getToolDefinition("local_grok_inspect");

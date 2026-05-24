@@ -54,12 +54,14 @@ describe("pi-grok-build e2e — public API", () => {
     assert.equal(typeof mod.buildSpawnOptions, "function");
   });
 
-  it("xai-api exports all expected functions", async () => {
+  it("xai-api exports only grounded Imagine functions", async () => {
     const mod = await import("../../../src/xai-api.ts");
     assert.equal(typeof mod.imagineImage, "function");
     assert.equal(typeof mod.imagineVideo, "function");
-    assert.equal(typeof mod.textToSpeech, "function");
-    assert.equal(typeof mod.speechToText, "function");
+    assert.equal(typeof mod.startVideoGeneration, "function");
+    assert.equal(typeof mod.pollVideoGeneration, "function");
+    assert.equal("textToSpeech" in mod, false);
+    assert.equal("speechToText" in mod, false);
   });
 
   it("types module exports expected type interfaces (loads cleanly)", async () => {
@@ -291,11 +293,38 @@ describe("pi-grok-build e2e — extension registration mock", () => {
     assert.ok(registered.tools.includes("test_grok_models"));
     assert.ok(registered.tools.includes("test_grok_sessions"));
     assert.ok(registered.tools.includes("test_grok_memory"));
-    assert.ok(registered.tools.includes("test_grok_imagine_image"));
-    assert.ok(registered.tools.includes("test_grok_imagine_video"));
-    assert.ok(registered.tools.includes("test_grok_tts"));
-    assert.ok(registered.tools.includes("test_grok_stt"));
-    assert.equal(registered.tools.length, 9);
+    assert.equal(registered.tools.includes("test_grok_imagine_image"), false);
+    assert.equal(registered.tools.includes("test_grok_imagine_video"), false);
+    assert.equal(registered.tools.includes("test_grok_imagine_video_status"), false);
+    assert.equal(registered.tools.includes("test_grok_tts"), false);
+    assert.equal(registered.tools.includes("test_grok_stt"), false);
+    assert.equal(registered.tools.length, 5);
+  });
+
+  it("registers documented Imagine tools only when xAI API key is configured", async () => {
+    const original = process.env.XAI_API_KEY;
+    process.env.XAI_API_KEY = "test-key";
+    try {
+      const { createGrokBuildExtension } = await import("../../../src/extension.ts");
+      const registered = { tools: [] as string[] };
+      const mockApi = {
+        registerProvider: () => {},
+        registerCommand: () => {},
+        registerTool: (tool: { name: string }) => registered.tools.push(tool.name),
+      };
+
+      createGrokBuildExtension({ toolNamePrefix: "test_" }).register(mockApi as any);
+
+      assert.ok(registered.tools.includes("test_grok_imagine_image"));
+      assert.ok(registered.tools.includes("test_grok_imagine_video"));
+      assert.ok(registered.tools.includes("test_grok_imagine_video_status"));
+      assert.equal(registered.tools.includes("test_grok_tts"), false);
+      assert.equal(registered.tools.includes("test_grok_stt"), false);
+      assert.equal(registered.tools.length, 8);
+    } finally {
+      if (original === undefined) delete process.env.XAI_API_KEY;
+      else process.env.XAI_API_KEY = original;
+    }
   });
 
   it("grok_inspect tool returns version and authed fields", async () => {

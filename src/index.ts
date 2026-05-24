@@ -73,15 +73,18 @@ export type {
 } from "./types.ts";
 export type {
   ImagineImageResult,
-  ImagineVideoResult,
-  SttResult,
-  TtsResult,
+  PollVideoGenerationResult,
+  StartVideoGenerationResult,
+  VideoGenerationStatus,
 } from "./xai-api.ts";
 export {
+  DEFAULT_IMAGE_MODEL,
+  DEFAULT_VIDEO_MODEL,
+  getXaiApiKey,
   imagineImage,
   imagineVideo,
-  speechToText,
-  textToSpeech,
+  pollVideoGeneration,
+  startVideoGeneration,
 } from "./xai-api.ts";
 export type { GrokBuildOptions };
 export { createGrokBuildExtension };
