@@ -19,7 +19,15 @@ import {
   captureStderr,
   buildGrokArgs,
 } from "./grok-runner.ts";
-import { parseGrokLine, isStreamEvent, isResultEvent, isErrorEvent } from "./grok-parser.ts";
+import {
+  parseGrokLine,
+  isStreamEvent,
+  isResultEvent,
+  isErrorEvent,
+  isTextEvent,
+  isThoughtEvent,
+  isEndEvent,
+} from "./grok-parser.ts";
 import { createGrokEventBridge } from "./grok-bridge.ts";
 import type { GrokNdjsonMessage, GrokSpawnOptions } from "./types.ts";
 
@@ -149,6 +157,10 @@ export function buildSpawnOptions(
   const spawnOpts: GrokSpawnOptions = {
     modelId: model.id,
     alwaysApprove: true,
+    // Grok Build subagents can hang in non-interactive Pi provider calls when
+    // their worker auth channel is unavailable. Pi already owns orchestration;
+    // default provider calls to a single Grok turn unless explicitly overridden.
+    noSubagents: true,
   };
 
   if (options?.cwd !== undefined) spawnOpts.cwd = options.cwd;
@@ -223,14 +235,71 @@ export function streamViaGrok(
 
       // Create event bridge
       const bridge = createGrokEventBridge(stream, model);
+      const output = bridge.getOutput();
 
       let streamEnded = false;
       let broken = false;
+      let started = false;
+      let textIndex: number | undefined;
+      let thinkingIndex: number | undefined;
+
+      function ensureStarted(): void {
+        if (started) return;
+        started = true;
+        stream.push({ type: "start", partial: output });
+      }
+
+      function appendTextDelta(delta: string): void {
+        if (!delta) return;
+        ensureStarted();
+        if (textIndex === undefined) {
+          textIndex = output.content.length;
+          output.content.push({ type: "text" as const, text: "" });
+          stream.push({ type: "text_start", contentIndex: textIndex, partial: output });
+        }
+        const block = output.content[textIndex];
+        if (block?.type === "text") {
+          block.text += delta;
+        }
+        stream.push({ type: "text_delta", contentIndex: textIndex, delta, partial: output });
+      }
+
+      function appendThinkingDelta(delta: string): void {
+        if (!delta) return;
+        ensureStarted();
+        if (thinkingIndex === undefined) {
+          thinkingIndex = output.content.length;
+          output.content.push({ type: "thinking" as const, thinking: "", thinkingSignature: "" });
+          stream.push({ type: "thinking_start", contentIndex: thinkingIndex, partial: output });
+        }
+        const block = output.content[thinkingIndex];
+        if (block?.type === "thinking") {
+          block.thinking += delta;
+        }
+        stream.push({ type: "thinking_delta", contentIndex: thinkingIndex, delta, partial: output });
+      }
+
+      function finishOpenBlocks(): void {
+        if (thinkingIndex !== undefined) {
+          const block = output.content[thinkingIndex];
+          if (block?.type === "thinking") {
+            stream.push({ type: "thinking_end", contentIndex: thinkingIndex, content: block.thinking, partial: output });
+          }
+          thinkingIndex = undefined;
+        }
+        if (textIndex !== undefined) {
+          const block = output.content[textIndex];
+          if (block?.type === "text") {
+            stream.push({ type: "text_end", contentIndex: textIndex, content: block.text, partial: output });
+          }
+          textIndex = undefined;
+        }
+      }
 
       function endStreamWithError(errMsg: string): void {
         if (streamEnded || broken) return;
         streamEnded = true;
-        const output = bridge.getOutput();
+        finishOpenBlocks();
         const errorMessage = {
           ...output,
           content: output.content?.length
@@ -307,7 +376,19 @@ export function streamViaGrok(
         if (!msg) return;
 
         if (isStreamEvent(msg)) {
+          started = true;
           bridge.handleStreamEvent(msg);
+        } else if (isTextEvent(msg)) {
+          appendTextDelta(msg.data ?? "");
+        } else if (isThoughtEvent(msg)) {
+          appendThinkingDelta(msg.data ?? "");
+        } else if (isEndEvent(msg)) {
+          clearTimeout(inactivityTimer);
+          finishOpenBlocks();
+          output.responseId = msg.requestId;
+          output.stopReason = msg.stopReason === "MaxTokens" ? "length" : "stop";
+          if (proc) forceKillProcess(proc);
+          rl.close();
         } else if (isResultEvent(msg)) {
           if (msg.subtype === "error") {
             endStreamWithError(msg.error ?? "Unknown error from Grok CLI");
@@ -331,7 +412,7 @@ export function streamViaGrok(
 
       // Push final done event
       if (!streamEnded) {
-        const output = bridge.getOutput();
+        finishOpenBlocks();
         const piToolCalls = (output.content || []).filter(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (c: any) => c.type === "toolCall",

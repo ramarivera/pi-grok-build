@@ -7,6 +7,9 @@
  *   - "result"    - final result with usage stats
  *   - "system"    - system-level messages (session info, errors)
  *   - "error"     - top-level CLI errors, such as invalid model IDs
+ *   - "text"      - current Grok Build text delta event
+ *   - "thought"   - current Grok Build thought delta event
+ *   - "end"       - current Grok Build final event
  */
 
 /** Effort level for Grok headless mode. */
@@ -67,11 +70,31 @@ export interface GrokErrorEvent {
   error?: string;
 }
 
+export interface GrokTextEvent {
+  type: "text";
+  data?: string;
+}
+
+export interface GrokThoughtEvent {
+  type: "thought";
+  data?: string;
+}
+
+export interface GrokEndEvent {
+  type: "end";
+  stopReason?: string;
+  sessionId?: string;
+  requestId?: string;
+}
+
 export type GrokNdjsonMessage =
   | GrokStreamEvent
   | GrokResultEvent
   | GrokSystemEvent
-  | GrokErrorEvent;
+  | GrokErrorEvent
+  | GrokTextEvent
+  | GrokThoughtEvent
+  | GrokEndEvent;
 
 /** Content block in a Grok assistant message. */
 export interface GrokContentBlock {

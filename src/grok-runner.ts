@@ -7,17 +7,37 @@
  */
 
 import spawn from "cross-spawn";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { execSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import type { GrokRunResult, GrokSpawnOptions, GrokModelDescriptor } from "./types.ts";
 
-/** Known grok CLI binary names to try. */
+/** Known grok CLI binary names and install locations to try. */
 const GROK_BINARIES = ["grok"] as const;
 
-/** Detect the installed grok binary on PATH. */
+function candidateGrokPaths(): string[] {
+  const home = homedir();
+  return [
+    ...GROK_BINARIES,
+    join(home, ".local", "bin", "grok"),
+    join(home, ".grok", "bin", "grok"),
+    join(home, ".grok", "downloads", "grok-macos-aarch64"),
+    join(home, ".grok", "downloads", "grok-linux-x64"),
+    join(home, ".grok", "downloads", "grok-linux-aarch64"),
+  ];
+}
+
+/** Detect the installed grok binary on PATH or in the standard Grok install path. */
 export function detectGrokBinary(): string {
-  for (const bin of GROK_BINARIES) {
+  for (const bin of candidateGrokPaths()) {
     try {
+      if (bin.includes("/")) {
+        if (!existsSync(bin)) continue;
+        execSync(`"${bin}" --version`, { stdio: "pipe", timeout: 5000 });
+        return bin;
+      }
       execSync(`command -v ${bin}`, { stdio: "pipe", timeout: 5000 });
       return bin;
     } catch {

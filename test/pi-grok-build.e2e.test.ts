@@ -19,6 +19,9 @@ describe("pi-grok-build e2e — public API", () => {
     assert.equal(typeof mod.isResultEvent, "function");
     assert.equal(typeof mod.isSystemEvent, "function");
     assert.equal(typeof mod.isErrorEvent, "function");
+    assert.equal(typeof mod.isTextEvent, "function");
+    assert.equal(typeof mod.isThoughtEvent, "function");
+    assert.equal(typeof mod.isEndEvent, "function");
   });
 
   it("grok-runner exports all expected functions", async () => {
@@ -216,6 +219,13 @@ describe("pi-grok-build e2e — provider stream integration", () => {
     assert.equal(opts.permissionMode, "auto");
     assert.equal(opts.rules, "Use TypeScript");
     assert.equal(opts.alwaysApprove, true);
+  });
+
+  it("disables Grok subagents by default for Pi provider calls", async () => {
+    const { buildSpawnOptions } = await import("../src/provider.ts");
+    const model = { id: "grok-build", provider: "xai" } as any;
+    const opts = buildSpawnOptions(model, {});
+    assert.equal(opts.noSubagents, true);
   });
 
   it("contextHasImages drives vision model selection", async () => {

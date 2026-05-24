@@ -13,7 +13,7 @@ import {
   parseGrokModelsOutput,
   detectGrokBinary,
 } from "../src/grok-runner.ts";
-import { isErrorEvent, parseGrokLine } from "../src/grok-parser.ts";
+import { isEndEvent, isErrorEvent, isTextEvent, parseGrokLine } from "../src/grok-parser.ts";
 
 describe("buildGrokArgs", () => {
   it("builds minimal args", () => {
@@ -297,6 +297,16 @@ describe("parseGrokLine", () => {
     if (isErrorEvent(msg)) {
       assert.equal(msg.message, "unknown model id");
     }
+  });
+
+  it("classifies current Grok CLI text and end events", () => {
+    const text = parseGrokLine('{"type":"text","data":"hello"}');
+    assert.ok(text);
+    assert.equal(isTextEvent(text), true);
+
+    const end = parseGrokLine('{"type":"end","stopReason":"EndTurn","requestId":"req_123"}');
+    assert.ok(end);
+    assert.equal(isEndEvent(end), true);
   });
 });
 

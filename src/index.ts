@@ -29,7 +29,16 @@ export {
   parseGrokModelsOutput,
 } from "./grok-runner.ts";
 export { createGrokEventBridge } from "./grok-bridge.ts";
-export { parseGrokLine, isStreamEvent, isResultEvent, isSystemEvent, isErrorEvent } from "./grok-parser.ts";
+export {
+  parseGrokLine,
+  isStreamEvent,
+  isResultEvent,
+  isSystemEvent,
+  isErrorEvent,
+  isTextEvent,
+  isThoughtEvent,
+  isEndEvent,
+} from "./grok-parser.ts";
 export {
   imagineImage,
   imagineVideo,
@@ -48,6 +57,9 @@ export type {
   GrokResultEvent,
   GrokSystemEvent,
   GrokErrorEvent,
+  GrokTextEvent,
+  GrokThoughtEvent,
+  GrokEndEvent,
   GrokRunResult,
   TrackedBlock,
   TrackedContentBlock,

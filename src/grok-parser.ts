@@ -61,6 +61,33 @@ export function isErrorEvent(
 }
 
 /**
+ * Check if a parsed message is a current Grok CLI text delta event.
+ */
+export function isTextEvent(
+  msg: GrokNdjsonMessage,
+): msg is import("./types.ts").GrokTextEvent {
+  return msg.type === "text";
+}
+
+/**
+ * Check if a parsed message is a current Grok CLI thought delta event.
+ */
+export function isThoughtEvent(
+  msg: GrokNdjsonMessage,
+): msg is import("./types.ts").GrokThoughtEvent {
+  return msg.type === "thought";
+}
+
+/**
+ * Check if a parsed message is a current Grok CLI final event.
+ */
+export function isEndEvent(
+  msg: GrokNdjsonMessage,
+): msg is import("./types.ts").GrokEndEvent {
+  return msg.type === "end";
+}
+
+/**
  * Check if a parsed message is a system event.
  */
 export function isSystemEvent(
