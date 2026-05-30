@@ -11,12 +11,7 @@ import {
 } from "@earendil-works/pi-ai";
 import spawn from "cross-spawn";
 import { classifyGrokFailure, createDiagnostics, formatGrokFailure } from "./diagnostics.ts";
-import {
-  captureStderr,
-  detectGrokBinary,
-  forceKillProcess,
-  registerProcess,
-} from "./grok-runner.ts";
+import { captureStderr, forceKillProcess, registerProcess } from "./grok-runner.ts";
 import type { GrokReasoningEffort, GrokUsage } from "./types.ts";
 
 export type GrokIntegrationMode = "jsonl" | "acp";
@@ -306,7 +301,7 @@ export function streamViaGrokAcp(
     };
 
     try {
-      const binary = detectGrokBinary();
+      const binary = "grok";
       const args = buildGrokAcpArgs({
         modelId: model.id,
         ...(options?.reasoningEffort ? { reasoningEffort: options.reasoningEffort } : {}),

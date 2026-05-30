@@ -188,7 +188,7 @@ export function buildGrokArgs(prompt: string, options: GrokSpawnOptions): string
  * @returns The spawned ChildProcess with piped stdin/stdout/stderr
  */
 export function spawnGrok(prompt: string, options: GrokSpawnOptions = {}): ChildProcess {
-  const binary = detectGrokBinary();
+  const binary = GROK_BINARY;
   const args = buildGrokArgs(prompt, options);
 
   diagnostics.debug("spawning grok cli", () => ({
@@ -225,7 +225,7 @@ export function validateGrokPresence(): void {
  */
 export function validateGrokAuth(): boolean {
   try {
-    const binary = detectGrokBinary();
+    const binary = GROK_BINARY;
     const stdout = execFileSync(binary, ["models"], {
       stdio: "pipe",
       timeout: 15_000,
@@ -272,7 +272,7 @@ export function runGrokCommand(
   const maxOutput = 500_000; // 500KB limit
 
   try {
-    const binary = detectGrokBinary();
+    const binary = GROK_BINARY;
     diagnostics.debug("running grok command", () => ({
       args: redactGrokArgs(args),
       cwd: options.cwd ?? process.cwd(),
