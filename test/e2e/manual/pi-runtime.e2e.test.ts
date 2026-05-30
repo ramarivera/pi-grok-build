@@ -110,7 +110,7 @@ async function runPiRpcPrompt(message: string): Promise<string> {
 }
 
 describe("pi-grok-build real Pi runtime e2e", () => {
-  it("prints visible text through pi -p", () => {
+  it("prints visible text through default ACP mode in pi -p", () => {
     const stdout = runPi([...piArgs, "Respond exactly PI_GROK_OK and nothing else."]);
 
     assert.ok(stdout.includes(PI_OK), stdout);
@@ -133,10 +133,10 @@ describe("pi-grok-build real Pi runtime e2e", () => {
     );
   });
 
-  it("prints visible text through selectable ACP mode", () => {
+  it("prints visible text through selectable JSONL fallback mode", () => {
     const stdout = runPi([...piArgs, "Respond exactly PI_GROK_OK and nothing else."], {
       ...process.env,
-      PI_GROK_BUILD_MODE: "acp",
+      PI_GROK_BUILD_MODE: "jsonl",
     });
 
     assert.ok(stdout.includes(PI_OK), stdout);

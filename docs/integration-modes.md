@@ -6,11 +6,11 @@ Bead: `pgb-005` — selectable JSONL/ACP integration mode.
 
 ## Selection
 
-Default mode is `jsonl`.
+Default mode is `acp`.
 
 ```bash
-PI_GROK_BUILD_MODE=jsonl
 PI_GROK_BUILD_MODE=acp
+PI_GROK_BUILD_MODE=jsonl
 ```
 
 `PI_GROK_BUILD_INTEGRATION_MODE` is accepted as a compatibility alias, but `PI_GROK_BUILD_MODE` wins when both are set.
@@ -25,7 +25,7 @@ Backing command:
 grok -p '<prompt>' --model grok-build --output-format streaming-json --always-approve --no-plan --no-subagents --max-turns 1
 ```
 
-Use this when you want the most boring, easiest-to-debug path.
+Use this when you want the older one-shot subprocess path for comparison or fallback.
 
 Strengths:
 
@@ -57,7 +57,7 @@ The ACP path speaks JSON-RPC over stdio:
 4. `session/prompt`
 5. stream `session/update` chunks into Pi thinking/text events
 
-Use this when you specifically want the ACP protocol bridge or want to compare it against JSONL behavior.
+Use this for normal provider calls. It follows Grok's ACP protocol bridge instead of the older one-shot JSONL prompt subprocess.
 
 Strengths:
 
@@ -71,9 +71,9 @@ Limitations:
 - Current implementation starts a fresh ACP process/session per Pi provider call. It is not yet a shared persistent agent process.
 - Model and reasoning effort are startup arguments. Grok ACP currently does not support reliable in-session `session/set_config_option`; changing model/effort means starting a new process/session.
 - ACP emits many Grok-specific notifications; the provider maps only `agent_message_chunk` and `agent_thought_chunk` into Pi events and ignores unrelated operational notifications.
-- ACP can be slower than JSONL for single-shot prompts because it must initialize, authenticate, and create a session before prompting.
+- Current local smoke evidence shows ACP is materially faster than JSONL for `pi -p` on this machine, but it still pays initialize/auth/session setup per Pi provider call.
 - Permission and tool behavior are intentionally constrained with `--always-approve`; Grok subagents remain out of provider scope.
 
 ## Current recommendation
 
-Keep `jsonl` as the default. Use `acp` only for targeted local experiments or when you need ACP behavior specifically. If ACP proves valuable in real Pi usage, a later bead should make it persistent and add resume/replay hardening.
+Keep `acp` as the default. Use `jsonl` only for targeted fallback/comparison. A later persistence pass should reuse an ACP runtime across turns where Pi keeps the extension process alive.

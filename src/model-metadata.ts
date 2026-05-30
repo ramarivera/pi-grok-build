@@ -3,6 +3,7 @@ import type { GrokModelDescriptor } from "./types.ts";
 
 export const GROK_BUILD_PROVIDER_ID = "pi-grok-build";
 export const GROK_JSONL_INTEGRATION_MODE = "jsonl";
+export const GROK_DEFAULT_INTEGRATION_MODE = "acp";
 
 export const GROK_THINKING_LEVEL_MAP = {
   off: "none",

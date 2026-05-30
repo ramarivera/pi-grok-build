@@ -5,6 +5,7 @@ import {
   buildGrokProviderModels,
   fallbackGrokBuildModel,
   GROK_BUILD_PROVIDER_ID,
+  GROK_DEFAULT_INTEGRATION_MODE,
   GROK_JSONL_INTEGRATION_MODE,
   GROK_THINKING_LEVEL_MAP,
 } from "../../src/model-metadata.ts";
@@ -12,6 +13,7 @@ import {
 describe("Grok provider metadata", () => {
   it("uses honest provider and integration identifiers", () => {
     assert.equal(GROK_BUILD_PROVIDER_ID, "pi-grok-build");
+    assert.equal(GROK_DEFAULT_INTEGRATION_MODE, "acp");
     assert.equal(GROK_JSONL_INTEGRATION_MODE, "jsonl");
   });
 

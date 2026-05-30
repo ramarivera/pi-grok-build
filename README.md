@@ -51,16 +51,16 @@ If `grok` is missing or unauthenticated, provider calls fail fast with a Pi-visi
 
 ## Integration modes
 
-Default provider mode is the proven JSONL path:
-
-```bash
-PI_GROK_BUILD_MODE=jsonl
-```
-
-ACP mode is available for comparison through Grok's stdio JSON-RPC surface:
+Default provider mode is ACP through Grok's stdio JSON-RPC surface:
 
 ```bash
 PI_GROK_BUILD_MODE=acp
+```
+
+The older one-shot streaming JSON path remains available as an explicit fallback:
+
+```bash
+PI_GROK_BUILD_MODE=jsonl
 ```
 
 `PI_GROK_BUILD_INTEGRATION_MODE` is accepted as a compatibility alias, but `PI_GROK_BUILD_MODE` wins.

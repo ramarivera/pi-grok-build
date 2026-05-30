@@ -9,8 +9,8 @@ This checklist is the gate before saying `pi-grok-build` is ready, published, or
 Confirm the release claim matches the actual shipped surface:
 
 - Provider: `pi-grok-build/grok-build`
-- Default integration: `PI_GROK_BUILD_MODE=jsonl`
-- Optional integration: `PI_GROK_BUILD_MODE=acp`
+- Default integration: `PI_GROK_BUILD_MODE=acp`
+- Optional fallback integration: `PI_GROK_BUILD_MODE=jsonl`
 - Always-available tools:
   - `grok_inspect`
   - `grok_models`

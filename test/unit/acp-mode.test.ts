@@ -7,9 +7,9 @@ import {
 } from "../../src/acp-mode.ts";
 
 describe("parseGrokIntegrationMode", () => {
-  it("defaults to jsonl when unset", () => {
-    assert.equal(parseGrokIntegrationMode(undefined), "jsonl");
-    assert.equal(parseGrokIntegrationMode(""), "jsonl");
+  it("defaults to acp when unset", () => {
+    assert.equal(parseGrokIntegrationMode(undefined), "acp");
+    assert.equal(parseGrokIntegrationMode(""), "acp");
   });
 
   it("accepts jsonl and acp case-insensitively", () => {

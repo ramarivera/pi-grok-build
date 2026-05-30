@@ -12,6 +12,7 @@ import {
 import spawn from "cross-spawn";
 import { classifyGrokFailure, createDiagnostics, formatGrokFailure } from "./diagnostics.ts";
 import { captureStderr, forceKillProcess, registerProcess } from "./grok-runner.ts";
+import { GROK_DEFAULT_INTEGRATION_MODE } from "./model-metadata.ts";
 import type { GrokReasoningEffort, GrokUsage } from "./types.ts";
 
 export type GrokIntegrationMode = "jsonl" | "acp";
@@ -56,7 +57,7 @@ interface AcpStreamOptions extends SimpleStreamOptions {
 }
 
 export function parseGrokIntegrationMode(value: string | undefined): GrokIntegrationMode {
-  if (value === undefined || value.trim() === "") return "jsonl";
+  if (value === undefined || value.trim() === "") return GROK_DEFAULT_INTEGRATION_MODE;
   const normalized = value.trim().toLowerCase();
   if (normalized === "jsonl" || normalized === "acp") return normalized;
   throw new Error(

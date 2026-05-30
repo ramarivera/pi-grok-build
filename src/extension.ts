@@ -30,6 +30,7 @@ import {
   buildGrokProviderModels,
   fallbackGrokBuildModel,
   GROK_BUILD_PROVIDER_ID,
+  GROK_DEFAULT_INTEGRATION_MODE,
   GROK_JSONL_INTEGRATION_MODE,
 } from "./model-metadata.ts";
 import { streamViaGrok } from "./provider.ts";
@@ -249,7 +250,7 @@ export function createGrokBuildExtension(options: GrokBuildOptions = {}) {
               version,
               authed,
               providerId: PROVIDER_ID,
-              integrationMode: GROK_JSONL_INTEGRATION_MODE,
+              integrationMode: GROK_DEFAULT_INTEGRATION_MODE,
               modelSource,
               models: models.map((m) => ({ id: m.id, name: m.name })),
               inspect,

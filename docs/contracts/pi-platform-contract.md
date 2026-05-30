@@ -74,7 +74,7 @@ Selection should be via env var or small config file, for example:
 - `PI_GROK_BUILD_MODE=jsonl|acp`
 - optional local config later if needed
 
-`jsonl` remains the default. `acp` is implemented as a selectable per-call bridge via `grok agent stdio`; it is intentionally not persistent yet.
+`acp` is the default. `jsonl` remains a selectable fallback/comparison path. The current ACP implementation is a per-call bridge via `grok agent stdio`; it is intentionally not persistent yet.
 
 ## Scope boundaries from the goal
 
@@ -99,7 +99,7 @@ Selection should be via env var or small config file, for example:
 3. Register only provider + `grok_inspect` + `grok_models` initially.
 4. Add command diagnostics after provider works.
 5. Use Pi events/tool result contracts, not log strings, as test oracle.
-6. Keep JSONL as default until ACP has enough real-world soak time to justify persistence work.
+6. Keep ACP as default and retain JSONL as an explicit fallback until persistent ACP runtime reuse is implemented.
 
 ## Acceptance for pgb-002
 
