@@ -31,7 +31,6 @@ import {
   fallbackGrokBuildModel,
   GROK_BUILD_PROVIDER_ID,
   GROK_DEFAULT_INTEGRATION_MODE,
-  GROK_JSONL_INTEGRATION_MODE,
 } from "./model-metadata.ts";
 import { streamViaGrok } from "./provider.ts";
 import type { GrokRunResult } from "./types.ts";

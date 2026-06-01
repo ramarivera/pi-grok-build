@@ -264,41 +264,58 @@ describe("pi-grok-build e2e — provider stream integration", () => {
 
 describe("pi-grok-build e2e — extension registration mock", () => {
   it("registers provider, command, and 5 tools with a mock ExtensionAPI", async () => {
+    const originalXaiApiKey = process.env.XAI_API_KEY;
+    const originalGrokCodeXaiApiKey = process.env.GROK_CODE_XAI_API_KEY;
+    const originalDisableAuthCache = process.env.PI_GROK_BUILD_DISABLE_GROK_AUTH_CACHE;
+    delete process.env.XAI_API_KEY;
+    delete process.env.GROK_CODE_XAI_API_KEY;
+    process.env.PI_GROK_BUILD_DISABLE_GROK_AUTH_CACHE = "1";
+
     const { createGrokBuildExtension } = await import("../../../src/extension.ts");
 
-    const registered = {
-      providers: [] as string[],
-      commands: [] as string[],
-      tools: [] as string[],
-    };
+    try {
+      const registered = {
+        providers: [] as string[],
+        commands: [] as string[],
+        tools: [] as string[],
+      };
 
-    const mockApi = {
-      registerProvider: (id: string) => registered.providers.push(id),
-      registerCommand: (name: string) => registered.commands.push(name),
-      registerTool: (tool: { name: string }) => registered.tools.push(tool.name),
-    };
+      const mockApi = {
+        registerProvider: (id: string) => registered.providers.push(id),
+        registerCommand: (name: string) => registered.commands.push(name),
+        registerTool: (tool: { name: string }) => registered.tools.push(tool.name),
+      };
 
-    const ext = createGrokBuildExtension({
-      commandName: "test-grok",
-      toolNamePrefix: "test_",
-    });
+      const ext = createGrokBuildExtension({
+        commandName: "test-grok",
+        toolNamePrefix: "test_",
+      });
 
-    // Registration may warn about auth, but should still register everything
-    ext.register(mockApi as any);
+      // Registration may warn about auth, but should still register everything
+      ext.register(mockApi as any);
 
-    assert.ok(registered.providers.includes("pi-grok-build"));
-    assert.ok(registered.commands.includes("test-grok"));
-    assert.ok(registered.tools.includes("test_grok_inspect"));
-    assert.ok(registered.tools.includes("test_grok_run"));
-    assert.ok(registered.tools.includes("test_grok_models"));
-    assert.ok(registered.tools.includes("test_grok_sessions"));
-    assert.ok(registered.tools.includes("test_grok_memory"));
-    assert.equal(registered.tools.includes("test_grok_imagine_image"), false);
-    assert.equal(registered.tools.includes("test_grok_imagine_video"), false);
-    assert.equal(registered.tools.includes("test_grok_imagine_video_status"), false);
-    assert.equal(registered.tools.includes("test_grok_tts"), false);
-    assert.equal(registered.tools.includes("test_grok_stt"), false);
-    assert.equal(registered.tools.length, 5);
+      assert.ok(registered.providers.includes("pi-grok-build"));
+      assert.ok(registered.commands.includes("test-grok"));
+      assert.ok(registered.tools.includes("test_grok_inspect"));
+      assert.ok(registered.tools.includes("test_grok_run"));
+      assert.ok(registered.tools.includes("test_grok_models"));
+      assert.ok(registered.tools.includes("test_grok_sessions"));
+      assert.ok(registered.tools.includes("test_grok_memory"));
+      assert.equal(registered.tools.includes("test_grok_imagine_image"), false);
+      assert.equal(registered.tools.includes("test_grok_imagine_video"), false);
+      assert.equal(registered.tools.includes("test_grok_imagine_video_status"), false);
+      assert.equal(registered.tools.includes("test_grok_tts"), false);
+      assert.equal(registered.tools.includes("test_grok_stt"), false);
+      assert.equal(registered.tools.length, 5);
+    } finally {
+      if (originalXaiApiKey === undefined) delete process.env.XAI_API_KEY;
+      else process.env.XAI_API_KEY = originalXaiApiKey;
+      if (originalGrokCodeXaiApiKey === undefined) delete process.env.GROK_CODE_XAI_API_KEY;
+      else process.env.GROK_CODE_XAI_API_KEY = originalGrokCodeXaiApiKey;
+      if (originalDisableAuthCache === undefined)
+        delete process.env.PI_GROK_BUILD_DISABLE_GROK_AUTH_CACHE;
+      else process.env.PI_GROK_BUILD_DISABLE_GROK_AUTH_CACHE = originalDisableAuthCache;
+    }
   });
 
   it("registers documented Imagine tools only when xAI API key is configured", async () => {

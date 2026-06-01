@@ -1,12 +1,12 @@
 # CURRENT_STATE — pi-grok-build
 
-Last updated: 2026-05-24
+Last updated: 2026-06-01
 
 ## Current reality
 
-`pi-grok-build` is now a real Pi provider integration for the local Grok Build CLI, with JSONL as the default path and ACP available as a selectable comparison path.
+`pi-grok-build` is now a real Pi provider integration for the local Grok Build CLI, with ACP as the default path and JSONL available as a selectable comparison/fallback path.
 
-The repo is intentionally not considered final-release complete until the release checklist is run fresh, but the earlier fake-green state has been corrected.
+Version `0.1.4` is published on npm, live Pi settings/toolbox source-of-truth point at `npm:@ramarivera/pi-grok-build@0.1.4`, and this audit prepares `0.1.5` for the auth-cache e2e correction.
 
 ## Proven so far
 
@@ -24,7 +24,7 @@ The repo is intentionally not considered final-release complete until the releas
 - Real Pi RPC mode has emitted JSONL events containing `PI_GROK_OK`.
 - Selectable ACP mode has produced visible `PI_GROK_OK` through Pi print mode.
 - Missing CLI, invalid model, auth/subprocess/timeout/parse failures are categorized and surfaced through Pi stream `error` events.
-- Unit tests, property tests, Biome checks, and manual Grok/Pi e2e tests exist and have passed during the rebuild sessions.
+- Unit tests, property tests, Biome checks, package dry-run, and manual Grok/Pi e2e tests exist and have fresh 2026-06-01 verification evidence.
 
 ## Current supported surface
 
@@ -38,8 +38,8 @@ The repo is intentionally not considered final-release complete until the releas
 
 ### Integration modes
 
-- `PI_GROK_BUILD_MODE=jsonl` — default, one-shot `grok -p --output-format streaming-json`
-- `PI_GROK_BUILD_MODE=acp` — fresh `grok agent --no-leader --always-approve --model <model> stdio` process/session per provider call
+- `PI_GROK_BUILD_MODE=acp` — default, fresh `grok agent --no-leader --always-approve --model <model> stdio` process/session per provider call
+- `PI_GROK_BUILD_MODE=jsonl` — one-shot `grok -p --output-format streaming-json`
 
 See `docs/integration-modes.md`.
 
@@ -66,11 +66,9 @@ Not shipped:
 - voice/TTS/STT tools
 - provider image input
 
-## Known limitations / release blockers
+## Known limitations
 
-- Branch is local-only until explicitly pushed/released.
-- Final release bead still needs a fresh completion audit and release verification.
-- RPC mode now has automated e2e evidence through `test/e2e/manual/pi-runtime.e2e.test.ts`.
+- RPC mode has automated e2e evidence through `test/e2e/manual/pi-runtime.e2e.test.ts`.
 - Interactive mode should still be manually smoked before final release if the release claim includes interactive TUI behavior.
 - ACP mode is functional but not persistent; each provider call starts a fresh ACP process/session.
 - xAI media tools are grounded and API-key gated, but live media generation has not been run in this environment because no xAI API key is configured.
