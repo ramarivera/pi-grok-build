@@ -11,3 +11,5 @@ issue-prefix: "pgb"
 
 # Keep command output human-readable by default.
 json: false
+
+sync.remote: "git+ssh://git@github.com/ramarivera/pi-grok-build.git"
